@@ -50,16 +50,20 @@ class Asteroid {
 	int numVertices;
 	int spikiness; // Standard deviation of the random gaussian process that chooses the euclidian distance from the asteroid's centroid to each vertex, with the radius being the mean
         Color colour;
+	int screenWidth;
+	int screenHeight;
 
 	// Keep both for now. TODO: Know numVertices so don't want these to have dynamic length
 	std::vector<PolarCoordinate> polarVertices;
 	std::vector<Vector2> cartesianVertices;
 
-	Asteroid(Vector2 pos, float dx, float dy, float rad, int nVert, int spik, Color col): position(pos), velocX(dx), velocY(dy), radius(rad), numVertices(nVert), spikiness(spik), colour(col), polarVertices(nVert), cartesianVertices(nVert) {
+	Asteroid(Vector2 pos, float dx, float dy, float rad, int nVert, int spik, Color col, int sWidth, int sHeight): position(pos), velocX(dx), velocY(dy), radius(rad), numVertices(nVert), spikiness(spik), colour(col), polarVertices(nVert), cartesianVertices(nVert), screenWidth(sWidth), screenHeight(sHeight) {
             
             // TODO: Avoid repeating this
 	    const double pi = 3.141592653589793238;
             
+	    // Randomly generate euclidian representations for each of the five vertices from the centroid
+	    
 	    // Create random number generators for uniform real distribution and gaussian distribution
 	    // NOTE: Obviously move this somewhere else
 	    std::random_device rd; // Create seed
@@ -80,14 +84,25 @@ class Asteroid {
 
 	void Draw() {
 
-	    // Randomly generate euclidian representations for each of the five vertices from the centroid
-            
+	    // Update the centroid and the vertices' cartesian positions
+	    position.x += velocX;
+	    position.y += velocY;
+            // TODO: Put this all in a single for loop
+	    // TODO: Rather than keeping track of all cartesian vertices, it will be easier to change the origin
+	    // and update the cartesian points based off the polarVertices, if a little slower
+	    for (int i = 0; i < numVertices; i++) {
+		// Update positions based on x and y components of velocity
+	        cartesianVertices[i].x += velocX;
+		cartesianVertices[i].y += velocY;
+            }
+
 	    for (int i = 0; i < (numVertices - 1); i++) {
 	        // Draw lines between asteroid's vertices
 		DrawLineV(cartesianVertices[i], cartesianVertices[i + 1], colour);
 	    }
 	    DrawLineV(cartesianVertices[numVertices - 1], cartesianVertices[0], WHITE);
 	    //DrawCircle(position.x, position.y, radius, colour);
+	
 	}
 };
 
@@ -151,9 +166,9 @@ int main() {
     
     SetTargetFPS(fps);
 
-    Asteroid roid1 = Asteroid({100, 100}, 0, 0, 20, 10, 10, WHITE);
-    Asteroid roid2 = Asteroid({600, 200}, 0, 0, 10, 7, 10, WHITE);
-    Asteroid roid3 = Asteroid({200, 500}, 0, 0, 30, 12, 15, WHITE);
+    Asteroid roid1 = Asteroid({100, 100}, 3, 4, 20, 10, 10, WHITE, screenWidth, screenHeight);
+    Asteroid roid2 = Asteroid({600, 200}, 10, -5, 10, 7, 10, WHITE, screenWidth, screenHeight);
+    Asteroid roid3 = Asteroid({200, 500}, -2, -3, 30, 12, 15, WHITE, screenWidth, screenHeight);
     // Main game loop
     while (!w.ShouldClose()) // Detect window close button or ESC key
     {
