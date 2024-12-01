@@ -1,6 +1,7 @@
 #include <iostream>
 #include <raylib-cpp.hpp>
 #include <cmath>
+#include <algorithm>
 
 class Bullet {
     public:
@@ -18,6 +19,10 @@ class Bullet {
             position.x += deltaX;
 	    position.y += deltaY;
 	    DrawCircleV(position, radius, color);
+	}
+
+        bool IsOffScreen(int screenWidth, int screenHeight) {
+	    return (position.x < 0 || position.x > screenWidth || position.y < 0 || position.y > screenHeight);
 	}
 };
 
@@ -40,8 +45,8 @@ int main() {
 
     std::vector<Bullet> bullets;
     int bRadius = 2;
-    float bSpeed = 10.0;
-    Color bColor = RED;
+    float bSpeed = 20.0;
+    Color bColor = WHITE;
     // Wait a period between successive bullet object creations
     int bFramesBetweenSpawn = 10;
     int bFramesUntilNextSpawn = 0;
@@ -159,8 +164,8 @@ int main() {
             if (bFramesUntilNextSpawn <= 0) {
 	    
                 // Quick way to get the bullet x & y deltas
-	        float bDeltaX = deltaX * (bSpeed/pSpeed);
-	        float bDeltaY = deltaY * (bSpeed/pSpeed);
+	        float bDeltaX = deltaXShip * (bSpeed/pLength);
+	        float bDeltaY = deltaYShip * (bSpeed/pLength);
 	    
 	        bullets.push_back(Bullet({pPoints[0].x, pPoints[0].y}, bDeltaX, bDeltaY, bSpeed, bRadius, bColor));
 	        bFramesUntilNextSpawn = bFramesBetweenSpawn;
@@ -181,9 +186,15 @@ int main() {
         ClearBackground(BLACK);
 
 	// Draw all bullets
-	for (auto& bullet : bullets) {
+	for (auto& bullet : bullets) { 
 	    bullet.Draw();
 	}
+
+	// Remove bullets that are off screen
+	bullets.erase(std::remove_if(bullets.begin(), bullets.end(),
+	    [screenWidth, screenHeight](Bullet& bullet) {
+	        return bullet.IsOffScreen(screenWidth, screenHeight);
+	    }), bullets.end());
         
 	//DrawRectangle(pPosX, pPosY, size, size, BLUE);
 	DrawTriangle(pPoints[10], pPoints[9], pPoints[8], IsKeyDown(KEY_UP) ? ORANGE : BLACK);
