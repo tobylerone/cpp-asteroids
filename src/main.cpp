@@ -2,6 +2,25 @@
 #include <raylib-cpp.hpp>
 #include <cmath>
 
+class Bullet {
+    public:
+        Vector2 position;
+	float deltaX;
+	float deltaY;
+	float speed;
+	float radius;
+	Color color;
+
+	Bullet(Vector2 pos, float dx, float dy, float s, float r, Color c): position(pos), deltaX(dx), deltaY(dy), speed(s), radius(r), color(c) {}
+	
+	void Draw() {
+	    // Update the positions
+            position.x += deltaX;
+	    position.y += deltaY;
+	    DrawCircleV(position, radius, color);
+	}
+};
+
 int main() {
     
     // Initialization
@@ -14,10 +33,18 @@ int main() {
     float pMaxSpeed = 8;
     float pSpeed = 0; // Pixels per frame
     float pDrag = 0.05; // Pixels per frame
-    float pGradient = 99999999;
+    //float pGradient = 99999999;
     int pLength = 50;
     int pWidth = 20;
     int pNumPoints = 11;
+
+    std::vector<Bullet> bullets;
+    int bRadius = 2;
+    float bSpeed = 10.0;
+    Color bColor = RED;
+    // Wait a period between successive bullet object creations
+    int bFramesBetweenSpawn = 10;
+    int bFramesUntilNextSpawn = 0;
 
     // Main line down the middle of the ship
     Vector2 pPoint0 = {screenWidth/2, screenHeight/2 - pLength/2};
@@ -102,7 +129,7 @@ int main() {
 	float deltaY;
 
 	if (deltaXShip != 0.0) {
-	    pGradient = deltaYShip/deltaXShip;
+	    //pGradient = deltaYShip/deltaXShip;
 	    deltaX = deltaXShip * speedByShipLength;
 	    deltaY = deltaYShip * speedByShipLength;
 	} else {
@@ -127,6 +154,18 @@ int main() {
 	    pPoints[i].y += deltaY;
 	}
 
+	if (IsKeyDown(KEY_SPACE)) {
+	    //Create a new bullet if enough frames have passed since the last spawn
+            if (bFramesUntilNextSpawn <= 0) {
+	    
+                // Quick way to get the bullet x & y deltas
+	        float bDeltaX = deltaX * (bSpeed/pSpeed);
+	        float bDeltaY = deltaY * (bSpeed/pSpeed);
+	    
+	        bullets.push_back(Bullet({pPoints[0].x, pPoints[0].y}, bDeltaX, bDeltaY, bSpeed, bRadius, bColor));
+	        bFramesUntilNextSpawn = bFramesBetweenSpawn;
+	    }
+	}
 	// Recalculate the midpoint	    
         //pMidpoint = {(pPoints[0].x + pPoints[1].x)/2, (pPoints[0].y + pPoints[0].y)/2};
     	pMidpoint = {(pPoints[0].x + pPoints[1].x)/2 - (pPoints[0].x - pPoints[1].x)/4, (pPoints[0].y + pPoints[1].y)/2 - (pPoints[0].y - pPoints[1].y) / 4}; // Shift back to 1/4 along midline
@@ -134,9 +173,17 @@ int main() {
         // Decay the speed
 	pSpeed -= (pSpeed > 0 ? pDrag : 0);
 
-        // Draw
+	// Decrement the frame count between bullet spawning
+	if (bFramesUntilNextSpawn > 0) bFramesUntilNextSpawn--;
+
+        // DRAW------------------------------------------------------------------------------
         BeginDrawing();
         ClearBackground(BLACK);
+
+	// Draw all bullets
+	for (auto& bullet : bullets) {
+	    bullet.Draw();
+	}
         
 	//DrawRectangle(pPosX, pPosY, size, size, BLUE);
 	DrawTriangle(pPoints[10], pPoints[9], pPoints[8], IsKeyDown(KEY_UP) ? ORANGE : BLACK);
