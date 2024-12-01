@@ -36,13 +36,16 @@ int main() {
     const double pi = 3.141592653589793238;
 
     float pMaxSpeed = 8;
-    float pSpeed = 0; // Pixels per frame
-    float pDrag = 0.05; // Pixels per frame
+    float pDragCoeff = 0.99;
+    float pAccel = 0.2; // pixels per frame^2
     //float pGradient = 99999999;
     int pLength = 50;
     int pWidth = 20;
     int pNumPoints = 11;
-
+    // x and y components of player velocity
+    float pVelocX = 0;
+    float pVelocY = 0; 
+    
     std::vector<Bullet> bullets;
     int bRadius = 2;
     float bSpeed = 20.0;
@@ -119,28 +122,29 @@ int main() {
 	    }
 	}
 
-	// Move ship forwards
-	if (IsKeyDown(KEY_UP)) {
-	    // Instantaneously set speed back to pMaxSpeed (no acceleration)
-	    pSpeed = pMaxSpeed;
-	}
-	
 	// Calculate the direction of travel (essentially the gradient from point1 to point0
 	float deltaXShip = pPoints[0].x - pPoints[1].x;
 	float deltaYShip = pPoints[0].y - pPoints[1].y;
-	float speedByShipLength = pSpeed / pLength;	
+	// Move ship forwards
+	
+	if (IsKeyDown(KEY_UP)) {
+	    // Instantaneously set speed back to pMaxSpeed (no acceleration)
+            float accelByShipLength = pAccel / pLength;
 
-	float deltaX;
-	float deltaY;
+	    //float deltaX;
+	    //float deltaY;
 
-	if (deltaXShip != 0.0) {
-	    //pGradient = deltaYShip/deltaXShip;
-	    deltaX = deltaXShip * speedByShipLength;
-	    deltaY = deltaYShip * speedByShipLength;
-	} else {
-	    // Infinite gradient. No x delta
-	    deltaY = -pSpeed;
-	    deltaX = 0;
+	    if (deltaXShip != 0.0) {
+	        //pGradient = deltaYShip/deltaXShip;
+	        //pVelocX = deltaXShip * speedByShipLength;
+	        //pVelocY = deltaYShip * speedByShipLength;
+	        pVelocX += deltaXShip * accelByShipLength;
+	        pVelocY += deltaYShip * accelByShipLength;
+	    } else {
+	        // Infinite gradient. No x delta
+	        pVelocY -= pAccel;
+	        pVelocX = 0;
+	    }
 	}
 	// Given a known velocity with speed component s and direction g (dy/dx), the x component
 	// delta x = sqrt(s - (1 + (dy/dx)) and the y component delta y = sqrt(s - (delta x)^2) 
@@ -155,8 +159,8 @@ int main() {
 	// points 0 and 1 to the x and y shift for the time step
 
 	for (int i = 0; i < pNumPoints; i++) {
-	    pPoints[i].x += deltaX;
-	    pPoints[i].y += deltaY;
+	    pPoints[i].x += pVelocX;
+	    pPoints[i].y += pVelocY;
 	}
 
 	if (IsKeyDown(KEY_SPACE)) {
@@ -164,10 +168,10 @@ int main() {
             if (bFramesUntilNextSpawn <= 0) {
 	    
                 // Quick way to get the bullet x & y deltas
-	        float bDeltaX = deltaXShip * (bSpeed/pLength);
-	        float bDeltaY = deltaYShip * (bSpeed/pLength);
+	        float bVelocX = deltaXShip * (bSpeed/pLength);
+	        float bVelocY = deltaYShip * (bSpeed/pLength);
 	    
-	        bullets.push_back(Bullet({pPoints[0].x, pPoints[0].y}, bDeltaX, bDeltaY, bSpeed, bRadius, bColor));
+	        bullets.push_back(Bullet({pPoints[0].x, pPoints[0].y}, bVelocX, bVelocY, bSpeed, bRadius, bColor));
 	        bFramesUntilNextSpawn = bFramesBetweenSpawn;
 	    }
 	}
@@ -176,7 +180,8 @@ int main() {
     	pMidpoint = {(pPoints[0].x + pPoints[1].x)/2 - (pPoints[0].x - pPoints[1].x)/4, (pPoints[0].y + pPoints[1].y)/2 - (pPoints[0].y - pPoints[1].y) / 4}; // Shift back to 1/4 along midline
 
         // Decay the speed
-	pSpeed -= (pSpeed > 0 ? pDrag : 0);
+	pVelocX *= pDragCoeff;
+        pVelocY *= pDragCoeff;	
 
 	// Decrement the frame count between bullet spawning
 	if (bFramesUntilNextSpawn > 0) bFramesUntilNextSpawn--;
