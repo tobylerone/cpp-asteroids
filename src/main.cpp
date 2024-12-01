@@ -112,9 +112,9 @@ int main() {
     int screenWidth = 1000;
     int screenHeight = 700;
     int fps = 60;
-
     const double pi = 3.141592653589793238;
 
+    int score = 0;
     float pMaxSpeed = 8;
     float pDragCoeff = 0.99;
     float pAccel = 0.2; // pixels per frame^2
@@ -161,7 +161,7 @@ int main() {
     // Radians to rotate by per frame (0.02 radians)
     float theta = (2 * pi / 50);
 
-    raylib::Color textColor(LIGHTGRAY);
+    raylib::Color textColor(GREEN);
     raylib::Window w(screenWidth, screenHeight, "Asteroids");
     
     SetTargetFPS(fps);
@@ -296,7 +296,7 @@ int main() {
 	DrawLine(pPoints[4].x, pPoints[4].y, pPoints[5].x, pPoints[5].y, WHITE);
 	DrawLine(pPoints[6].x, pPoints[6].y, pPoints[7].x, pPoints[7].y, WHITE);
 	
-	textColor.DrawText("X: " + std::to_string(pMidpoint.x) + " Y: " + std::to_string(pMidpoint.y) + "", 10, screenHeight-20, 20);	
+	textColor.DrawText("Score: " + std::to_string(score) + "", 10, 10, 20);	
 	EndDrawing();
     }
 
