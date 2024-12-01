@@ -11,7 +11,9 @@ int main() {
 
     const double pi = 3.141592653589793238;
 
-    float pSpeed = 6;  //Pixels per frame
+    float pMaxSpeed = 6;
+    float pSpeed = 0; // Pixels per frame
+    float pDrag = 0.05; // Pixels per frame
     int pLength = 50;
     int pWidth = 20;
     int pNumPoints = 8;
@@ -81,46 +83,51 @@ int main() {
 
 	// Move ship forwards
 	if (IsKeyDown(KEY_UP)) {
-	    
-	    // Calculate the direction of travel (essentially the gradient from point1 to point0
-	    float deltaXShip = pPoints[0].x - pPoints[1].x;
-	    float deltaYShip = pPoints[0].y - pPoints[1].y;
-	    float speedByShipLength = pSpeed / pLength;	
-	    float gradient;
-
-	    float deltaX;
-	    float deltaY;
-
-	    if (deltaXShip != 0.0) {
-	        gradient = deltaYShip/deltaXShip;
-	        deltaX = deltaXShip * speedByShipLength;
-		deltaY = deltaYShip * speedByShipLength;
-	    } else {
-	        // Infinite gradient. No x delta
-	        deltaY = pSpeed;
-	        deltaX = 0;
-	    }
-	    // Given a known velocity with speed component s and direction g (dy/dx), the x component
-	    // delta x = sqrt(s - (1 + (dy/dx)) and the y component delta y = sqrt(s - (delta x)^2) 
-	    // So over a discrete time replace s with the distance travelled (s*deltat) in the direction of
-	    // velocity and you can use this to work out how far you should shift in the x and
-	    // y direction, which makes intuitive sense since deltaX is sqrt(s) for zero gradient
-	    // and deltaY = sqrt(s) for infinite gradient (X*2 + y*2 = s * deltat)
-	    //float deltaX = sqrt(pSpeed - (1 + gradient));
-	    //float deltaY = sqrt(pSpeed - deltaX*2);
-
-	    // Alternatively, the ratio of speed to ship length will let you map deltay/delta x between
-	    // points 0 and 1 to the x and y shift for the time step
-
-	    for (int i = 0; i < pNumPoints; i++) {
-	        pPoints[i].x += deltaX;
-	    	pPoints[i].y += deltaY;
-	    }
-
-	    // Recalculate the midpoint	    
-            //pMidpoint = {(pPoints[0].x + pPoints[1].x)/2, (pPoints[0].y + pPoints[0].y)/2};
-    	    pMidpoint = {(pPoints[0].x + pPoints[1].x)/2 - (pPoints[0].x - pPoints[1].x)/4, (pPoints[0].y + pPoints[1].y)/2 - (pPoints[0].y - pPoints[1].y) / 4}; // Shift back to 1/4 along midline
+	    // Instantaneously set speed back to pMaxSpeed (no acceleration)
+	    pSpeed = pMaxSpeed;
 	}
+	
+	// Calculate the direction of travel (essentially the gradient from point1 to point0
+	float deltaXShip = pPoints[0].x - pPoints[1].x;
+	float deltaYShip = pPoints[0].y - pPoints[1].y;
+	float speedByShipLength = pSpeed / pLength;	
+	float gradient;
+
+	float deltaX;
+	float deltaY;
+
+	if (deltaXShip != 0.0) {
+	    gradient = deltaYShip/deltaXShip;
+	    deltaX = deltaXShip * speedByShipLength;
+	    deltaY = deltaYShip * speedByShipLength;
+	} else {
+	    // Infinite gradient. No x delta
+	    deltaY = pSpeed;
+	    deltaX = 0;
+	}
+	// Given a known velocity with speed component s and direction g (dy/dx), the x component
+	// delta x = sqrt(s - (1 + (dy/dx)) and the y component delta y = sqrt(s - (delta x)^2) 
+	// So over a discrete time replace s with the distance travelled (s*deltat) in the direction of
+	// velocity and you can use this to work out how far you should shift in the x and
+	// y direction, which makes intuitive sense since deltaX is sqrt(s) for zero gradient
+	// and deltaY = sqrt(s) for infinite gradient (X*2 + y*2 = s * deltat)
+	//float deltaX = sqrt(pSpeed - (1 + gradient));
+	//float deltaY = sqrt(pSpeed - deltaX*2);
+
+	// Alternatively, the ratio of speed to ship length will let you map deltay/delta x between
+	// points 0 and 1 to the x and y shift for the time step
+
+	for (int i = 0; i < pNumPoints; i++) {
+	    pPoints[i].x += deltaX;
+	    pPoints[i].y += deltaY;
+	}
+
+	// Recalculate the midpoint	    
+        //pMidpoint = {(pPoints[0].x + pPoints[1].x)/2, (pPoints[0].y + pPoints[0].y)/2};
+    	pMidpoint = {(pPoints[0].x + pPoints[1].x)/2 - (pPoints[0].x - pPoints[1].x)/4, (pPoints[0].y + pPoints[1].y)/2 - (pPoints[0].y - pPoints[1].y) / 4}; // Shift back to 1/4 along midline
+
+        // Decay the speed
+	pSpeed -= (pSpeed > 0 ? pDrag : 0);
 
         // Draw
         BeginDrawing();
