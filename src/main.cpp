@@ -2,27 +2,92 @@
 #include <raylib-cpp.hpp>
 #include <cmath>
 #include <algorithm>
+#include <random>
 
 class Bullet {
     public:
         Vector2 position;
-	float deltaX;
-	float deltaY;
-	float speed;
+	float velocX;
+	float velocY;
 	float radius;
 	Color color;
 
-	Bullet(Vector2 pos, float dx, float dy, float s, float r, Color c): position(pos), deltaX(dx), deltaY(dy), speed(s), radius(r), color(c) {}
+	Bullet(Vector2 pos, float dx, float dy, float r, Color c): position(pos), velocX(dx), velocY(dy), radius(r), color(c) {}
 	
 	void Draw() {
 	    // Update the positions
-            position.x += deltaX;
-	    position.y += deltaY;
+            position.x += velocX;
+	    position.y += velocY;
 	    DrawCircleV(position, radius, color);
 	}
 
         bool IsOffScreen(int screenWidth, int screenHeight) {
 	    return (position.x < 0 || position.x > screenWidth || position.y < 0 || position.y > screenHeight);
+	}
+};
+
+class PolarCoordinate {
+    public:
+        float magnitude; //pixels
+        float theta; //radians
+
+        PolarCoordinate(float mag, float the) : magnitude(mag), theta(the) {}
+	
+	// Default constructor
+	PolarCoordinate() : magnitude(0), theta(0) {}
+
+        Vector2 to_cartesian(Vector2 origin) {
+            return {origin.x + magnitude*cos(theta), origin.y + magnitude*sin(theta)};
+        }
+};
+
+class Asteroid {
+    public:
+        Vector2 position;
+	float velocX;
+	float velocY;
+	float radius;
+	int numVertices;
+	int spikiness; // Standard deviation of the random gaussian process that chooses the euclidian distance from the asteroid's centroid to each vertex, with the radius being the mean
+        Color colour;
+
+	// Keep both for now. TODO: Know numVertices so don't want these to have dynamic length
+	std::vector<PolarCoordinate> polarVertices;
+	std::vector<Vector2> cartesianVertices;
+
+	Asteroid(Vector2 pos, float dx, float dy, float rad, int nVert, int spik, Color col): position(pos), velocX(dx), velocY(dy), radius(rad), numVertices(nVert), spikiness(spik), colour(col), polarVertices(nVert), cartesianVertices(nVert) {
+            
+            // TODO: Avoid repeating this
+	    const double pi = 3.141592653589793238;
+            
+	    // Create random number generators for uniform real distribution and gaussian distribution
+	    // NOTE: Obviously move this somewhere else
+	    std::random_device rd; // Create seed
+            std::mt19937 gen(rd());
+
+	    std::uniform_real_distribution<> uniformDis(0.0, 1.0);
+	    std::normal_distribution<> gaussDis(radius, spikiness);
+
+	    for (int i = 0; i < numVertices; i++) {
+	        polarVertices[i].magnitude = radius + gaussDis(gen);
+	        //polarVertices[i].theta = 2*pi * uniformDis(gen);	
+	    	// Theta has to be ordered to avoid lines overlapping
+		// TODO: Don't evenly distribute theta in a circle. Add some randomness
+		polarVertices[i].theta = i*(2*pi/numVertices);
+		cartesianVertices[i] = polarVertices[i].to_cartesian(position);
+            }
+	}
+
+	void Draw() {
+
+	    // Randomly generate euclidian representations for each of the five vertices from the centroid
+            
+	    for (int i = 0; i < (numVertices - 1); i++) {
+	        // Draw lines between asteroid's vertices
+		DrawLineV(cartesianVertices[i], cartesianVertices[i + 1], colour);
+	    }
+	    DrawLineV(cartesianVertices[numVertices - 1], cartesianVertices[0], WHITE);
+	    //DrawCircle(position.x, position.y, radius, colour);
 	}
 };
 
@@ -86,6 +151,9 @@ int main() {
     
     SetTargetFPS(fps);
 
+    Asteroid roid1 = Asteroid({100, 100}, 0, 0, 20, 10, 10, WHITE);
+    Asteroid roid2 = Asteroid({600, 200}, 0, 0, 10, 7, 10, WHITE);
+    Asteroid roid3 = Asteroid({200, 500}, 0, 0, 30, 12, 15, WHITE);
     // Main game loop
     while (!w.ShouldClose()) // Detect window close button or ESC key
     {
@@ -171,7 +239,7 @@ int main() {
 	        float bVelocX = deltaXShip * (bSpeed/pLength);
 	        float bVelocY = deltaYShip * (bSpeed/pLength);
 	    
-	        bullets.push_back(Bullet({pPoints[0].x, pPoints[0].y}, bVelocX, bVelocY, bSpeed, bRadius, bColor));
+	        bullets.push_back(Bullet({pPoints[0].x, pPoints[0].y}, bVelocX, bVelocY, bRadius, bColor));
 	        bFramesUntilNextSpawn = bFramesBetweenSpawn;
 	    }
 	}
@@ -200,8 +268,13 @@ int main() {
 	    [screenWidth, screenHeight](Bullet& bullet) {
 	        return bullet.IsOffScreen(screenWidth, screenHeight);
 	    }), bullets.end());
-        
-	//DrawRectangle(pPosX, pPosY, size, size, BLUE);
+
+        // Draw all asteroids
+        roid1.Draw();
+        roid2.Draw();
+	roid3.Draw();
+
+	// Draw player
 	DrawTriangle(pPoints[10], pPoints[9], pPoints[8], IsKeyDown(KEY_UP) ? ORANGE : BLACK);
 	DrawLine(pPoints[0].x, pPoints[0].y, pPoints[1].x, pPoints[1].y, BLACK);
 	DrawLine(pPoints[2].x, pPoints[2].y, pPoints[3].x, pPoints[3].y, WHITE);
