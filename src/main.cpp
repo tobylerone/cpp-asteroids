@@ -87,13 +87,24 @@ class Asteroid {
 	    // Update the centroid and the vertices' cartesian positions
 	    position.x += velocX;
 	    position.y += velocY;
-            // TODO: Put this all in a single for loop
+
+	    // Loop asteroid back round if entire circle + n standard deviations of spikiness distribution away from mean
+	    // is off the screen
+	    float offset = (2*radius) + (3*spikiness);
+	    // Check if off screen
+            if (position.x > screenWidth + offset) position.x = -offset;
+	    if (position.x < -offset) position.x = screenWidth + offset;
+            if (position.y > screenHeight + offset) position.y = -offset;
+	    if (position.y < -offset) position.y = screenHeight + offset;
+            
+	    // TODO: Put this all in a single for loop
 	    // TODO: Rather than keeping track of all cartesian vertices, it will be easier to change the origin
 	    // and update the cartesian points based off the polarVertices, if a little slower
 	    for (int i = 0; i < numVertices; i++) {
 		// Update positions based on x and y components of velocity
-	        cartesianVertices[i].x += velocX;
-		cartesianVertices[i].y += velocY;
+	        //cartesianVertices[i].x += velocX;
+		//cartesianVertices[i].y += velocY;
+		cartesianVertices[i] = polarVertices[i].to_cartesian(position);
             }
 
 	    for (int i = 0; i < (numVertices - 1); i++) {
