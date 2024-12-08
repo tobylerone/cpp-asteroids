@@ -4,6 +4,144 @@
 #include <algorithm>
 #include <random>
 
+class Player {
+ 
+     public:
+	 int screenWidth;
+	 int screenHeight;
+         float accel = 0.2; // pixels per frame^2
+	 const double pi = 3.141592653589793238;
+         float dragCoeff = 0.99;
+	 int length = 50;
+         int width = 20;
+         int numPoints = 11;
+         // x and y components of player velocity
+         float velocX = 0;
+         float velocY = 0;
+
+	 float deltaXShip;
+	 float deltaYShip;
+         
+	 // Radians to rotate by per frame (0.02 radians)
+         float theta = (2 * pi / 50);
+
+	 std::vector<Vector2> points;
+	 Vector2 midpoint;
+    
+	 Player(int sw, int sh) : screenWidth(sw), screenHeight(sh) {
+	
+             // Main line down the middle of the ship
+             Vector2 point0 = {screenWidth/2, screenHeight/2 - length/2};
+             Vector2 point1 = {screenWidth/2, screenHeight/2 + length/2};
+
+             // Perpendicular bar at the back of the ship
+             Vector2 point2 = {screenWidth/2 - width/2, screenHeight/2 + length/2};
+             Vector2 point3 = {screenWidth/2 + width/2, screenHeight/2 + length/2};
+
+             // Side panels
+             Vector2 point4 = point0;
+             Vector2 point5 = {screenWidth/2 - width/2 - (width * 0.1), screenHeight/2 + length/2 + (length * 0.1)};
+             Vector2 point6 = point0;
+             Vector2 point7 = {screenWidth/2 + width/2 + (width * 0.1), screenHeight/2 + length/2 + (length * 0.1)};
+    
+             // Thruster
+             Vector2 point8 = {screenWidth/2 - width/4, screenHeight/2 + length/2};
+             Vector2 point9 = {screenWidth/2 + width/4, screenHeight/2 + length/2};
+             Vector2 point10 = {screenWidth/2, screenHeight/2 + 3*length/4};
+
+             points = {point0, point1, point2, point3, point4, point5, point6, point7, point8, point9, point10};
+
+             // Take the centre of rotation as the centre of the line running down the centre of the ship
+             midpoint = {(point0.x + point1.x)/2 - (point0.x - point1.x)/4, (point0.y + point1.y)/2 - (point0.y - point1.y) / 4}; // Shift back to 1/4 along midline
+	    
+	 }
+        
+	 void Draw() {
+            // Update variables
+	    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_LEFT)) {
+	        // Rotate player by chosen number of radians
+	        // Translate points so that midpoint is at origin
+	        Vector2 pointsOrigin[numPoints];
+
+	        for (int i = 0; i < numPoints; i++){
+	    	    pointsOrigin[i] = {points[i].x - midpoint.x, points[i].y - midpoint.y};
+	        }
+	        //Vector2 point1Origin = {point1.x - midpoint.x, point1.y - midpoint.y};
+	        //Vector2 point2Origin = {point2.x - midpoint.x, point2.y - midpoint.y};
+
+	        Vector2 pointsOriginRot[numPoints];
+	        // Rotate points using appropriate rotation matrix relative to the origin
+	        if (IsKeyDown(KEY_RIGHT)) {
+	            // Clockwise rotation
+		    for (int i = 0; i < numPoints; i++) {
+	                pointsOriginRot[i] = {cos(theta)*pointsOrigin[i].x -sin(theta)*pointsOrigin[i].y, sin(theta)*pointsOrigin[i].x + cos(theta)*pointsOrigin[i].y};
+		    }
+	        } else {
+	    	    // Anticlockwise rotation
+		    for (int i = 0; i < numPoints; i++) {
+	                pointsOriginRot[i] = {cos(theta)*pointsOrigin[i].x + sin(theta)*pointsOrigin[i].y, -sin(theta)*pointsOrigin[i].x + cos(theta)*pointsOrigin[i].y};
+		    }
+	        }
+	        // Translate points back to absolute locations
+	        for (int i = 0; i < numPoints; i++) {
+	            points[i] = {pointsOriginRot[i].x + midpoint.x, pointsOriginRot[i].y + midpoint.y};
+	        }
+	    }
+
+	    // Calculate the direction of travel (the direction from point1 to point0
+	    deltaXShip = points[0].x - points[1].x;
+	    deltaYShip = points[0].y - points[1].y;
+	    // Move ship forwards
+	
+	    if (IsKeyDown(KEY_UP)) {
+	        // Instantaneously set speed back to pMaxSpeed (no acceleration)
+                float accelByShipLength = accel / length;
+
+	        //float deltaX;
+	        //float deltaY;
+
+	        if (deltaXShip != 0.0) {
+	            velocX += deltaXShip * accelByShipLength;
+	            velocY += deltaYShip * accelByShipLength;
+	        } else {
+	            // Infinite gradient. No x delta
+	            velocY -= accel;
+	            velocX = 0;
+	        }
+	    }
+	    // Given a known velocity with speed component s and direction g (dy/dx), the x component
+	    // delta x = sqrt(s - (1 + (dy/dx)) and the y component delta y = sqrt(s - (delta x)^2) 
+	    // So over a discrete time replace s with the distance travelled (s*deltat) in the direction of
+	    // velocity and you can use this to work out how far you should shift in the x and
+	    // y direction, which makes intuitive sense since deltaX is sqrt(s) for zero gradient
+	    // and deltaY = sqrt(s) for infinite gradient (X*2 + y*2 = s * deltat)
+	    //float deltaX = sqrt(pSpeed - (1 + gradient));
+	    //float deltaY = sqrt(pSpeed - deltaX*2);
+
+	    // Alternatively, the ratio of speed to ship length will let you map deltay/delta x between
+	    // points 0 and 1 to the x and y shift for the time step
+
+	    for (int i = 0; i < numPoints; i++) {
+	        points[i].x += velocX;
+	        points[i].y += velocY;
+	    }
+
+	    // Recalculate the midpoint	    
+            //pMidpoint = {(pPoints[0].x + pPoints[1].x)/2, (pPoints[0].y + pPoints[0].y)/2};
+    	    midpoint = {(points[0].x + points[1].x)/2 - (points[0].x - points[1].x)/4, (points[0].y + points[1].y)/2 - (points[0].y - points[1].y) / 4}; // Shift back to 1/4 along midline
+
+            // Decay the speed
+	    velocX *= dragCoeff;
+            velocY *= dragCoeff;	
+
+	    DrawTriangle(points[10], points[9], points[8], IsKeyDown(KEY_UP) ? ORANGE : BLACK);
+	    DrawLine(points[0].x, points[0].y, points[1].x, points[1].y, BLACK);
+	    DrawLine(points[2].x, points[2].y, points[3].x, points[3].y, WHITE);
+	    DrawLine(points[4].x, points[4].y, points[5].x, points[5].y, WHITE);
+	    DrawLine(points[6].x, points[6].y, points[7].x, points[7].y, WHITE);
+        }
+};
+
 class Bullet {
     public:
         Vector2 position;
@@ -90,6 +228,7 @@ class Asteroid {
 
 	    // Loop asteroid back round if entire circle + n standard deviations of spikiness distribution away from mean
 	    // is off the screen
+	    // TODO: Just store the largest vertex magnitude and use this as the offset.
 	    float offset = (2*radius) + (3*spikiness);
 	    // Check if off screen
             if (position.x > screenWidth + offset) position.x = -offset;
@@ -126,16 +265,6 @@ int main() {
     const double pi = 3.141592653589793238;
 
     int score = 0;
-    float pMaxSpeed = 8;
-    float pDragCoeff = 0.99;
-    float pAccel = 0.2; // pixels per frame^2
-    //float pGradient = 99999999;
-    int pLength = 50;
-    int pWidth = 20;
-    int pNumPoints = 11;
-    // x and y components of player velocity
-    float pVelocX = 0;
-    float pVelocY = 0; 
     
     std::vector<Bullet> bullets;
     int bRadius = 2;
@@ -145,137 +274,32 @@ int main() {
     int bFramesBetweenSpawn = 10;
     int bFramesUntilNextSpawn = 0;
 
-    // Main line down the middle of the ship
-    Vector2 pPoint0 = {screenWidth/2, screenHeight/2 - pLength/2};
-    Vector2 pPoint1 = {screenWidth/2, screenHeight/2 + pLength/2};
-
-    // Perpendicular bar at the back of the ship
-    Vector2 pPoint2 = {screenWidth/2 - pWidth/2, screenHeight/2 + pLength/2};
-    Vector2 pPoint3 = {screenWidth/2 + pWidth/2, screenHeight/2 + pLength/2};
-
-    // Side panels
-    Vector2 pPoint4 = pPoint0;
-    Vector2 pPoint5 = {screenWidth/2 - pWidth/2 - (pWidth * 0.1), screenHeight/2 + pLength/2 + (pLength * 0.1)};
-    Vector2 pPoint6 = pPoint0;
-    Vector2 pPoint7 = {screenWidth/2 + pWidth/2 + (pWidth * 0.1), screenHeight/2 + pLength/2 + (pLength * 0.1)};
-    
-    // Thruster
-    Vector2 pPoint8 = {screenWidth/2 - pWidth/4, screenHeight/2 + pLength/2};
-    Vector2 pPoint9 = {screenWidth/2 + pWidth/4, screenHeight/2 + pLength/2};
-    Vector2 pPoint10 = {screenWidth/2, screenHeight/2 + 3*pLength/4};
-
-    Vector2 pPoints[] = {pPoint0, pPoint1, pPoint2, pPoint3, pPoint4, pPoint5, pPoint6, pPoint7, pPoint8, pPoint9, pPoint10};
-
-    // Take the centre of rotation as the centre of the line running down the centre of the ship
-    //Vector2 pMidpoint = {(pPoint0.x + pPoint1.x)/2, (pPoint0.y + pPoint1.y)/2};
-    Vector2 pMidpoint = {(pPoint0.x + pPoint1.x)/2 - (pPoint0.x - pPoint1.x)/4, (pPoint0.y + pPoint1.y)/2 - (pPoint0.y - pPoint1.y) / 4}; // Shift back to 1/4 along midline
-    // Radians to rotate by per frame (0.02 radians)
-    float theta = (2 * pi / 50);
-
     raylib::Color textColor(GREEN);
     raylib::Window w(screenWidth, screenHeight, "Asteroids");
     
     SetTargetFPS(fps);
 
+    Player p = Player(screenWidth, screenHeight);
+
     Asteroid roid1 = Asteroid({100, 100}, 3, 4, 20, 10, 10, WHITE, screenWidth, screenHeight);
     Asteroid roid2 = Asteroid({600, 200}, 10, -5, 10, 7, 10, WHITE, screenWidth, screenHeight);
     Asteroid roid3 = Asteroid({200, 500}, -2, -3, 30, 12, 15, WHITE, screenWidth, screenHeight);
+    
     // Main game loop
     while (!w.ShouldClose()) // Detect window close button or ESC key
     {
-        // Update variables
-	if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_LEFT)) {
-	    // Rotate p by chosen number of radians
-	    // Translate points so that midpoint is at origin
-	    Vector2 pPointsOrigin[pNumPoints];
-
-	    for (int i = 0; i < pNumPoints; i++){
-	    	pPointsOrigin[i] = {pPoints[i].x - pMidpoint.x, pPoints[i].y - pMidpoint.y};
-	    }
-	    //Vector2 pPoint1Origin = {pPoint1.x - pMidpoint.x, pPoint1.y - pMidpoint.y};
-	    //Vector2 pPoint2Origin = {pPoint2.x - pMidpoint.x, pPoint2.y - pMidpoint.y};
-
-	    Vector2 pPointsOriginRot[pNumPoints];
-	    // Rotate points using appropriate rotation matrix relative to the origin
-	    if (IsKeyDown(KEY_RIGHT)) {
-	        // Clockwise rotation
-		for (int i = 0; i < pNumPoints; i++) {
-	            pPointsOriginRot[i] = {cos(theta)*pPointsOrigin[i].x -sin(theta)*pPointsOrigin[i].y, sin(theta)*pPointsOrigin[i].x + cos(theta)*pPointsOrigin[i].y};
-		}
-	        //pPoint1OriginRot = {cos(theta)*pPoint1Origin.x + -sin(theta)*pPoint1Origin.y, sin(theta)*pPoint1Origin.x + cos(theta)*pPoint1Origin.y};
-	        //pPoint2OriginRot = {cos(theta)*pPoint2Origin.x + -sin(theta)*pPoint2Origin.y, sin(theta)*pPoint2Origin.x + cos(theta)*pPoint2Origin.y};
-	    } else {
-	    	// Anticlockwise rotation
-		for (int i = 0; i < pNumPoints; i++) {
-	            pPointsOriginRot[i] = {cos(theta)*pPointsOrigin[i].x + sin(theta)*pPointsOrigin[i].y, -sin(theta)*pPointsOrigin[i].x + cos(theta)*pPointsOrigin[i].y};
-		}
-	    }
-	    // Translate points back to absolute locations
-	    for (int i = 0; i < pNumPoints; i++) {
-	        pPoints[i] = {pPointsOriginRot[i].x + pMidpoint.x, pPointsOriginRot[i].y + pMidpoint.y};
-	    }
-	}
-
-	// Calculate the direction of travel (essentially the gradient from point1 to point0
-	float deltaXShip = pPoints[0].x - pPoints[1].x;
-	float deltaYShip = pPoints[0].y - pPoints[1].y;
-	// Move ship forwards
-	
-	if (IsKeyDown(KEY_UP)) {
-	    // Instantaneously set speed back to pMaxSpeed (no acceleration)
-            float accelByShipLength = pAccel / pLength;
-
-	    //float deltaX;
-	    //float deltaY;
-
-	    if (deltaXShip != 0.0) {
-	        //pGradient = deltaYShip/deltaXShip;
-	        //pVelocX = deltaXShip * speedByShipLength;
-	        //pVelocY = deltaYShip * speedByShipLength;
-	        pVelocX += deltaXShip * accelByShipLength;
-	        pVelocY += deltaYShip * accelByShipLength;
-	    } else {
-	        // Infinite gradient. No x delta
-	        pVelocY -= pAccel;
-	        pVelocX = 0;
-	    }
-	}
-	// Given a known velocity with speed component s and direction g (dy/dx), the x component
-	// delta x = sqrt(s - (1 + (dy/dx)) and the y component delta y = sqrt(s - (delta x)^2) 
-	// So over a discrete time replace s with the distance travelled (s*deltat) in the direction of
-	// velocity and you can use this to work out how far you should shift in the x and
-	// y direction, which makes intuitive sense since deltaX is sqrt(s) for zero gradient
-	// and deltaY = sqrt(s) for infinite gradient (X*2 + y*2 = s * deltat)
-	//float deltaX = sqrt(pSpeed - (1 + gradient));
-	//float deltaY = sqrt(pSpeed - deltaX*2);
-
-	// Alternatively, the ratio of speed to ship length will let you map deltay/delta x between
-	// points 0 and 1 to the x and y shift for the time step
-
-	for (int i = 0; i < pNumPoints; i++) {
-	    pPoints[i].x += pVelocX;
-	    pPoints[i].y += pVelocY;
-	}
-
 	if (IsKeyDown(KEY_SPACE)) {
 	    //Create a new bullet if enough frames have passed since the last spawn
             if (bFramesUntilNextSpawn <= 0) {
 	    
                 // Quick way to get the bullet x & y deltas
-	        float bVelocX = deltaXShip * (bSpeed/pLength);
-	        float bVelocY = deltaYShip * (bSpeed/pLength);
+	        float bVelocX = p.deltaXShip * (bSpeed/p.length);
+	        float bVelocY = p.deltaYShip * (bSpeed/p.length);
 	    
-	        bullets.push_back(Bullet({pPoints[0].x, pPoints[0].y}, bVelocX, bVelocY, bRadius, bColor));
+	        bullets.push_back(Bullet({p.points[0].x, p.points[0].y}, bVelocX, bVelocY, bRadius, bColor));
 	        bFramesUntilNextSpawn = bFramesBetweenSpawn;
 	    }
 	}
-	// Recalculate the midpoint	    
-        //pMidpoint = {(pPoints[0].x + pPoints[1].x)/2, (pPoints[0].y + pPoints[0].y)/2};
-    	pMidpoint = {(pPoints[0].x + pPoints[1].x)/2 - (pPoints[0].x - pPoints[1].x)/4, (pPoints[0].y + pPoints[1].y)/2 - (pPoints[0].y - pPoints[1].y) / 4}; // Shift back to 1/4 along midline
-
-        // Decay the speed
-	pVelocX *= pDragCoeff;
-        pVelocY *= pDragCoeff;	
 
 	// Decrement the frame count between bullet spawning
 	if (bFramesUntilNextSpawn > 0) bFramesUntilNextSpawn--;
@@ -300,13 +324,16 @@ int main() {
         roid2.Draw();
 	roid3.Draw();
 
+	/*
 	// Draw player
 	DrawTriangle(pPoints[10], pPoints[9], pPoints[8], IsKeyDown(KEY_UP) ? ORANGE : BLACK);
 	DrawLine(pPoints[0].x, pPoints[0].y, pPoints[1].x, pPoints[1].y, BLACK);
 	DrawLine(pPoints[2].x, pPoints[2].y, pPoints[3].x, pPoints[3].y, WHITE);
 	DrawLine(pPoints[4].x, pPoints[4].y, pPoints[5].x, pPoints[5].y, WHITE);
 	DrawLine(pPoints[6].x, pPoints[6].y, pPoints[7].x, pPoints[7].y, WHITE);
-	
+	*/
+	p.Draw();
+
 	textColor.DrawText("Score: " + std::to_string(score) + "", 10, 10, 20);	
 	EndDrawing();
     }
