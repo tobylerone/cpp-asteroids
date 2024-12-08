@@ -276,6 +276,19 @@ class Asteroid {
 	    //DrawCircle(position.x, position.y, radius, colour);
 	
 	}
+	bool ContainsBullet(Vector2 bulletCoords) {
+	    // This won't be too simple. For now, check if falls within the circle with radius
+	    // radius from midpoint
+	    
+	    // Calculate euclidean distance from midpoint to bullet coordinate
+	    float distance = std::sqrt(std::pow((bulletCoords.x - position.x), 2) + std::pow((bulletCoords.y - position.y), 2));
+
+	    // Update boolean depending on whether it's in the circle
+	    // NOTE: If at least one bullet is in the asteroid for each frame, this should
+	    // not be able to be set to false until the next frame. The asteroid should be
+	    // destroyed
+	    return (distance < radius) ? true : false;
+	}
 };
 
 int main() {
@@ -290,10 +303,10 @@ int main() {
     
     std::vector<Bullet> bullets;
     int bRadius = 2;
-    float bSpeed = 20.0;
+    float bSpeed = 30.0;
     Color bColor = WHITE;
     // Wait a period between successive bullet object creations
-    int bFramesBetweenSpawn = 10;
+    int bFramesBetweenSpawn = 8;
     int bFramesUntilNextSpawn = 0;
 
     raylib::Color textColor(GREEN);
@@ -304,9 +317,12 @@ int main() {
     Player p = Player(screenWidth, screenHeight);
 
     Asteroid roid1 = Asteroid({100, 100}, 3, 4, 20, 10, 10, WHITE, screenWidth, screenHeight);
-    Asteroid roid2 = Asteroid({600, 200}, 10, -5, 10, 7, 10, WHITE, screenWidth, screenHeight);
+    Asteroid roid2 = Asteroid({600, 200}, 8, -5, 10, 7, 10, WHITE, screenWidth, screenHeight);
     Asteroid roid3 = Asteroid({200, 500}, -2, -3, 30, 12, 15, WHITE, screenWidth, screenHeight);
+    Asteroid roid4 = Asteroid({700, 300}, 3, 5, 14, 12, 6, WHITE, screenWidth, screenHeight);
     
+    std::vector<Asteroid> asteroids = {roid1, roid2, roid3, roid4};
+
     // Main game loop
     while (!w.ShouldClose()) // Detect window close button or ESC key
     {
@@ -331,8 +347,21 @@ int main() {
         ClearBackground(BLACK);
 
 	// Draw all bullets
-	for (auto& bullet : bullets) { 
+	for (auto& bullet : bullets) {
 	    bullet.Draw();
+	}
+
+	// Remove asteroids that have been hit by a bullet
+	for (auto it = bullets.begin(); it != bullets.end(); ++it) {
+	    // Check if bullet is inside any asteroid
+	    for (auto asteroid_it = asteroids.begin(); asteroid_it != asteroids.end();) {
+	        if (asteroid_it->ContainsBullet(it->position)) {
+		    // Remove the asteroid and continue iterating
+		    asteroid_it = asteroids.erase(asteroid_it);
+		} else {
+	            ++asteroid_it;
+		}
+	    }
 	}
 
 	// Remove bullets that are off screen
@@ -342,18 +371,10 @@ int main() {
 	    }), bullets.end());
 
         // Draw all asteroids
-        roid1.Draw();
-        roid2.Draw();
-	roid3.Draw();
+        for (auto& asteroid : asteroids) {
+	    asteroid.Draw();
+	}
 
-	/*
-	// Draw player
-	DrawTriangle(pPoints[10], pPoints[9], pPoints[8], IsKeyDown(KEY_UP) ? ORANGE : BLACK);
-	DrawLine(pPoints[0].x, pPoints[0].y, pPoints[1].x, pPoints[1].y, BLACK);
-	DrawLine(pPoints[2].x, pPoints[2].y, pPoints[3].x, pPoints[3].y, WHITE);
-	DrawLine(pPoints[4].x, pPoints[4].y, pPoints[5].x, pPoints[5].y, WHITE);
-	DrawLine(pPoints[6].x, pPoints[6].y, pPoints[7].x, pPoints[7].y, WHITE);
-	*/
 	p.Draw();
 
 	textColor.DrawText("Score: " + std::to_string(score) + "", 10, 10, 20);	
