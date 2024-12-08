@@ -91,11 +91,33 @@ class Player {
 	    // Calculate the direction of travel (the direction from point1 to point0
 	    deltaXShip = points[0].x - points[1].x;
 	    deltaYShip = points[0].y - points[1].y;
+	    
+	    // To avoid extra computations, just loop back if midpoint is at least the ship's length off the screen
+            // TODO: Avoid repetition here
+	    if (midpoint.x > screenWidth + length) {
+	        for (int i = 0; i < numPoints; i++) {
+	            points[i].x -= screenWidth + length*2;
+	        }
+	    } else if (midpoint.x < -length) {
+	        for (int i = 0; i < numPoints; i++) {
+		    points[i].x += screenWidth + length*2;
+		}
+	    }
+
+	    if (midpoint.y > screenHeight + length) {
+	        for (int i = 0; i < numPoints; i++) {
+	            points[i].y -= screenHeight + length*2;
+	        }
+	    } else if (midpoint.y < -length) {
+	        for (int i = 0; i < numPoints; i++) {
+		    points[i].y += screenHeight + length*2;
+                }
+            }
+
 	    // Move ship forwards
-	
 	    if (IsKeyDown(KEY_UP)) {
-	        // Instantaneously set speed back to pMaxSpeed (no acceleration)
-                float accelByShipLength = accel / length;
+                
+		float accelByShipLength = accel / length;
 
 	        //float deltaX;
 	        //float deltaY;
