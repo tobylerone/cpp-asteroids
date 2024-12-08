@@ -356,8 +356,9 @@ int main() {
 	    // Check if bullet is inside any asteroid
 	    for (auto asteroid_it = asteroids.begin(); asteroid_it != asteroids.end();) {
 	        if (asteroid_it->ContainsBullet(it->position)) {
-		    // Remove the asteroid and continue iterating
+		    // Remove the asteroid, increment the score and continue iterating
 		    asteroid_it = asteroids.erase(asteroid_it);
+		    score++;
 		} else {
 	            ++asteroid_it;
 		}
