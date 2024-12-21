@@ -206,10 +206,13 @@ class Asteroid {
         Vector2 position;
 	float velocX;
 	float velocY;
-	float radius;
+	int radii[3] = {10, 15, 30};
+	int radius;
+	int size;
 	int numVertices;
+	int spikinesses[3] = {4, 6, 10};
 	int spikiness; // Standard deviation of the random gaussian process that chooses the euclidian distance from the asteroid's centroid to each vertex, with the radius being the mean
-        Color colour;
+	Color colour;
 	int screenWidth;
 	int screenHeight;
 
@@ -217,11 +220,18 @@ class Asteroid {
 	std::vector<PolarCoordinate> polarVertices;
 	std::vector<Vector2> cartesianVertices;
 
-	Asteroid(Vector2 pos, float dx, float dy, float rad, int nVert, int spik, Color col, int sWidth, int sHeight): position(pos), velocX(dx), velocY(dy), radius(rad), numVertices(nVert), spikiness(spik), colour(col), polarVertices(nVert), cartesianVertices(nVert), screenWidth(sWidth), screenHeight(sHeight) {
+	Asteroid(Vector2 pos, float dx, float dy, int siz, int nVert, Color col, int sWidth, int sHeight): position(pos), velocX(dx), velocY(dy), size(siz), numVertices(nVert), colour(col), polarVertices(nVert), cartesianVertices(nVert), screenWidth(sWidth), screenHeight(sHeight) {
             
             // TODO: Avoid repeating this
 	    const double pi = 3.141592653589793238;
             
+	    // Check size is within the bounds 1-3 and set the radius
+	    if (size < 1) size = 1;
+	    if (size > 3) size = 3;
+
+	    radius = radii[size-1];
+	    spikiness = spikinesses[size-1];
+
 	    // Randomly generate euclidian representations for each of the five vertices from the centroid
 	    
 	    // Create random number generators for uniform real distribution and gaussian distribution
@@ -292,6 +302,12 @@ class Asteroid {
 };
 
 int main() {
+
+    // Define random uniform process
+    std::random_device rd; // Create seed
+    std::mt19937 gen(rd());
+    
+    std::uniform_real_distribution<> uniformDis(-1.0, 1.0);
     
     // Initialization
     int screenWidth = 1000;
@@ -316,12 +332,14 @@ int main() {
 
     Player p = Player(screenWidth, screenHeight);
 
-    Asteroid roid1 = Asteroid({100, 100}, 3, 4, 20, 10, 10, WHITE, screenWidth, screenHeight);
-    Asteroid roid2 = Asteroid({600, 200}, 8, -5, 10, 7, 10, WHITE, screenWidth, screenHeight);
-    Asteroid roid3 = Asteroid({200, 500}, -2, -3, 30, 12, 15, WHITE, screenWidth, screenHeight);
-    Asteroid roid4 = Asteroid({700, 300}, 3, 5, 14, 12, 6, WHITE, screenWidth, screenHeight);
+    // The number of smaller asteroids created by destroying a larger one
+    int asteroidSpawnFactor = 2;
+
+    Asteroid roid1 = Asteroid({100, 100}, 3, 4, 3, 10, WHITE, screenWidth, screenHeight);
+    Asteroid roid2 = Asteroid({600, 200}, 8, -5, 3, 7, WHITE, screenWidth, screenHeight);
+    Asteroid roid3 = Asteroid({200, 500}, -2, -3, 3, 12, WHITE, screenWidth, screenHeight);
     
-    std::vector<Asteroid> asteroids = {roid1, roid2, roid3, roid4};
+    std::vector<Asteroid> asteroids = {roid1, roid2, roid3};
 
     // Main game loop
     while (!w.ShouldClose()) // Detect window close button or ESC key
@@ -351,19 +369,43 @@ int main() {
 	    bullet.Draw();
 	}
 
-	// Remove asteroids that have been hit by a bullet
+	// Split or remove asteroids that have been hit by a bullet depending on their size
+	std::vector<Asteroid> newAsteroids = {};
+	
 	for (auto it = bullets.begin(); it != bullets.end(); ++it) {
 	    // Check if bullet is inside any asteroid
 	    for (auto asteroid_it = asteroids.begin(); asteroid_it != asteroids.end();) {
 	        if (asteroid_it->ContainsBullet(it->position)) {
-		    // Remove the asteroid, increment the score and continue iterating
+		    // Remove the asteroid, spawn new smaller asteroids to resemble the
+		    // breaking up of the old, larger one
+		    if (asteroid_it->size > 1) {
+		        
+			int newSize = asteroid_it->size - 1;
+			
+			for (int i=0; i<asteroidSpawnFactor; i++){
+			    
+			    // Vary the position to within +- 1% of screen dimensions compared with original asteroid
+			    Vector2 newPosition = {asteroid_it->position.x + (screenWidth/100) * uniformDis(gen) , asteroid_it->position.y + (screenHeight/100) * uniformDis(gen)};
+			    // Choose new x and y components of velocity within +-10% of the original asteroid's values
+			    float newVelocX = asteroid_it->velocX + asteroid_it->velocX * uniformDis(gen) * 0.1;
+			    float newVelocY = asteroid_it->velocY + asteroid_it->velocY * uniformDis(gen) * 0.1;
+			    int newNumVertices = asteroid_it->numVertices;
+			      
+                            Asteroid newAsteroid = Asteroid(newPosition, newVelocX, newVelocY, newSize, newNumVertices, WHITE, screenWidth, screenHeight);
+			    newAsteroids.push_back(newAsteroid);
+			}
+		    } 
 		    asteroid_it = asteroids.erase(asteroid_it);
+		    // increment the score and continue iterating
 		    score++;
 		} else {
 	            ++asteroid_it;
 		}
 	    }
 	}
+
+	// Add new asteroids to the full list
+	asteroids.insert(asteroids.end(), newAsteroids.begin(), newAsteroids.end());
 
 	// Remove bullets that are off screen
 	bullets.erase(std::remove_if(bullets.begin(), bullets.end(),
