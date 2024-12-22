@@ -12,168 +12,6 @@ enum GameState {
     GAME_OVER
 };
 
-
-class Player {
- 
-     public:
-	 int SCREEN_WIDTH;
-	 int SCREEN_HEIGHT;
-         float accel = 0.2; // pixels per frame^2
-	 const double pi = 3.141592653589793238;
-         float dragCoeff = 0.99;
-	 int length = 50;
-         int width = 20;
-         int numPoints = 11;
-         // x and y components of player velocity
-         float velocX = 0;
-         float velocY = 0;
-
-	 float deltaXShip;
-	 float deltaYShip;
-         
-	 // Radians to rotate by per frame (0.02 radians)
-         float theta = (2 * pi / 50);
-
-	 std::vector<Vector2> points;
-	 Vector2 midpoint;
-    
-	 Player(int sw, int sh) : SCREEN_WIDTH(sw), SCREEN_HEIGHT(sh) {
-	
-             // Main line down the middle of the ship
-             Vector2 point0 = {SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - length/2};
-             Vector2 point1 = {SCREEN_WIDTH/2, SCREEN_HEIGHT/2 + length/2};
-
-             // Perpendicular bar at the back of the ship
-             Vector2 point2 = {SCREEN_WIDTH/2 - width/2, SCREEN_HEIGHT/2 + length/2};
-             Vector2 point3 = {SCREEN_WIDTH/2 + width/2, SCREEN_HEIGHT/2 + length/2};
-
-             // Side panels
-             Vector2 point4 = point0;
-             Vector2 point5 = {SCREEN_WIDTH/2 - width/2 - (width * 0.1), SCREEN_HEIGHT/2 + length/2 + (length * 0.1)};
-             Vector2 point6 = point0;
-             Vector2 point7 = {SCREEN_WIDTH/2 + width/2 + (width * 0.1), SCREEN_HEIGHT/2 + length/2 + (length * 0.1)};
-    
-             // Thruster
-             Vector2 point8 = {SCREEN_WIDTH/2 - width/4, SCREEN_HEIGHT/2 + length/2};
-             Vector2 point9 = {SCREEN_WIDTH/2 + width/4, SCREEN_HEIGHT/2 + length/2};
-             Vector2 point10 = {SCREEN_WIDTH/2, SCREEN_HEIGHT/2 + 3*length/4};
-
-             points = {point0, point1, point2, point3, point4, point5, point6, point7, point8, point9, point10};
-
-             // Take the centre of rotation as the centre of the line running down the centre of the ship
-             midpoint = {(point0.x + point1.x)/2 - (point0.x - point1.x)/4, (point0.y + point1.y)/2 - (point0.y - point1.y) / 4}; // Shift back to 1/4 along midline
-	    
-	 }
-        
-	 void Draw() {
-            // Update variables
-	    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_LEFT)) {
-	        // Rotate player by chosen number of radians
-	        // Translate points so that midpoint is at origin
-	        Vector2 pointsOrigin[numPoints];
-
-	        for (int i = 0; i < numPoints; i++){
-	    	    pointsOrigin[i] = {points[i].x - midpoint.x, points[i].y - midpoint.y};
-	        }
-	        //Vector2 point1Origin = {point1.x - midpoint.x, point1.y - midpoint.y};
-	        //Vector2 point2Origin = {point2.x - midpoint.x, point2.y - midpoint.y};
-
-	        Vector2 pointsOriginRot[numPoints];
-	        // Rotate points using appropriate rotation matrix relative to the origin
-	        if (IsKeyDown(KEY_RIGHT)) {
-	            // Clockwise rotation
-		    for (int i = 0; i < numPoints; i++) {
-	                pointsOriginRot[i] = {cos(theta)*pointsOrigin[i].x -sin(theta)*pointsOrigin[i].y, sin(theta)*pointsOrigin[i].x + cos(theta)*pointsOrigin[i].y};
-		    }
-	        } else {
-	    	    // Anticlockwise rotation
-		    for (int i = 0; i < numPoints; i++) {
-	                pointsOriginRot[i] = {cos(theta)*pointsOrigin[i].x + sin(theta)*pointsOrigin[i].y, -sin(theta)*pointsOrigin[i].x + cos(theta)*pointsOrigin[i].y};
-		    }
-	        }
-	        // Translate points back to absolute locations
-	        for (int i = 0; i < numPoints; i++) {
-	            points[i] = {pointsOriginRot[i].x + midpoint.x, pointsOriginRot[i].y + midpoint.y};
-	        }
-	    }
-
-	    // Calculate the direction of travel (the direction from point1 to point0
-	    deltaXShip = points[0].x - points[1].x;
-	    deltaYShip = points[0].y - points[1].y;
-	    
-	    // To avoid extra computations, just loop back if midpoint is at least the ship's length off the screen
-            // TODO: Avoid repetition here
-	    if (midpoint.x > SCREEN_WIDTH + length) {
-	        for (int i = 0; i < numPoints; i++) {
-	            points[i].x -= SCREEN_WIDTH + length*2;
-	        }
-	    } else if (midpoint.x < -length) {
-	        for (int i = 0; i < numPoints; i++) {
-		    points[i].x += SCREEN_WIDTH + length*2;
-		}
-	    }
-
-	    if (midpoint.y > SCREEN_HEIGHT + length) {
-	        for (int i = 0; i < numPoints; i++) {
-	            points[i].y -= SCREEN_HEIGHT + length*2;
-	        }
-	    } else if (midpoint.y < -length) {
-	        for (int i = 0; i < numPoints; i++) {
-		    points[i].y += SCREEN_HEIGHT + length*2;
-                }
-            }
-
-	    // Move ship forwards
-	    if (IsKeyDown(KEY_UP)) {
-                
-		float accelByShipLength = accel / length;
-
-	        //float deltaX;
-	        //float deltaY;
-
-	        if (deltaXShip != 0.0) {
-	            velocX += deltaXShip * accelByShipLength;
-	            velocY += deltaYShip * accelByShipLength;
-	        } else {
-	            // Infinite gradient. No x delta
-	            velocY -= accel;
-	            velocX = 0;
-	        }
-	    }
-	    // Given a known velocity with speed component s and direction g (dy/dx), the x component
-	    // delta x = sqrt(s - (1 + (dy/dx)) and the y component delta y = sqrt(s - (delta x)^2) 
-	    // So over a discrete time replace s with the distance travelled (s*deltat) in the direction of
-	    // velocity and you can use this to work out how far you should shift in the x and
-	    // y direction, which makes intuitive sense since deltaX is sqrt(s) for zero gradient
-	    // and deltaY = sqrt(s) for infinite gradient (X*2 + y*2 = s * deltat)
-	    //float deltaX = sqrt(pSpeed - (1 + gradient));
-	    //float deltaY = sqrt(pSpeed - deltaX*2);
-
-	    // Alternatively, the ratio of speed to ship length will let you map deltay/delta x between
-	    // points 0 and 1 to the x and y shift for the time step
-
-	    for (int i = 0; i < numPoints; i++) {
-	        points[i].x += velocX;
-	        points[i].y += velocY;
-	    }
-
-	    // Recalculate the midpoint	    
-            //pMidpoint = {(pPoints[0].x + pPoints[1].x)/2, (pPoints[0].y + pPoints[0].y)/2};
-    	    midpoint = {(points[0].x + points[1].x)/2 - (points[0].x - points[1].x)/4, (points[0].y + points[1].y)/2 - (points[0].y - points[1].y) / 4}; // Shift back to 1/4 along midline
-
-            // Decay the speed
-	    velocX *= dragCoeff;
-            velocY *= dragCoeff;	
-
-	    DrawTriangle(points[10], points[9], points[8], IsKeyDown(KEY_UP) ? ORANGE : BLACK);
-	    DrawLine(points[0].x, points[0].y, points[1].x, points[1].y, BLACK);
-	    DrawLine(points[2].x, points[2].y, points[3].x, points[3].y, WHITE);
-	    DrawLine(points[4].x, points[4].y, points[5].x, points[5].y, WHITE);
-	    DrawLine(points[6].x, points[6].y, points[7].x, points[7].y, WHITE);
-        }
-};
-
-
 class Bullet {
     public:
         Vector2 position;
@@ -313,6 +151,177 @@ class Asteroid {
 	}
 };
 
+class Player {
+ 
+     public:
+	 int SCREEN_WIDTH;
+	 int SCREEN_HEIGHT;
+         float accel = 0.2; // pixels per frame^2
+	 const double pi = 3.141592653589793238;
+         float dragCoeff = 0.99;
+	 int length = 50;
+         int width = 20;
+         int numPoints = 11;
+         // x and y components of player velocity
+         float velocX = 0;
+         float velocY = 0;
+
+	 float deltaXShip;
+	 float deltaYShip;
+         
+	 // Radians to rotate by per frame (0.02 radians)
+         float theta = (2 * pi / 50);
+
+	 std::vector<Vector2> points;
+	 Vector2 midpoint;
+    
+	 Player(int sw, int sh) : SCREEN_WIDTH(sw), SCREEN_HEIGHT(sh) {
+	
+             // Main line down the middle of the ship
+             Vector2 point0 = {SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - length/2};
+             Vector2 point1 = {SCREEN_WIDTH/2, SCREEN_HEIGHT/2 + length/2};
+
+             // Perpendicular bar at the back of the ship
+             Vector2 point2 = {SCREEN_WIDTH/2 - width/2, SCREEN_HEIGHT/2 + length/2};
+             Vector2 point3 = {SCREEN_WIDTH/2 + width/2, SCREEN_HEIGHT/2 + length/2};
+
+             // Side panels
+             Vector2 point4 = point0;
+             Vector2 point5 = {SCREEN_WIDTH/2 - width/2 - (width * 0.1), SCREEN_HEIGHT/2 + length/2 + (length * 0.1)};
+             Vector2 point6 = point0;
+             Vector2 point7 = {SCREEN_WIDTH/2 + width/2 + (width * 0.1), SCREEN_HEIGHT/2 + length/2 + (length * 0.1)};
+    
+             // Thruster
+             Vector2 point8 = {SCREEN_WIDTH/2 - width/4, SCREEN_HEIGHT/2 + length/2};
+             Vector2 point9 = {SCREEN_WIDTH/2 + width/4, SCREEN_HEIGHT/2 + length/2};
+             Vector2 point10 = {SCREEN_WIDTH/2, SCREEN_HEIGHT/2 + 3*length/4};
+
+             points = {point0, point1, point2, point3, point4, point5, point6, point7, point8, point9, point10};
+
+             // Take the centre of rotation as the centre of the line running down the centre of the ship
+             midpoint = {(point0.x + point1.x)/2 - (point0.x - point1.x)/4, (point0.y + point1.y)/2 - (point0.y - point1.y) / 4}; // Shift back to 1/4 along midline
+	    
+	 }
+
+	 bool CollidedWithAsteroid(Asteroid& asteroid) {
+	     
+             for (const auto& point : points) {
+	         // Calculate distance from point to midpoint of asteroid
+	         float distance = std::sqrt(std::pow((point.x - asteroid.position.x), 2) + std::pow((point.y - asteroid.position.y), 2));
+	         if (distance <= asteroid.radius) return true;
+	     }
+
+             return false;
+	 }
+        
+	 void Draw() {
+            // Update variables
+	    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_LEFT)) {
+	        // Rotate player by chosen number of radians
+	        // Translate points so that midpoint is at origin
+	        Vector2 pointsOrigin[numPoints];
+
+	        for (int i = 0; i < numPoints; i++){
+	    	    pointsOrigin[i] = {points[i].x - midpoint.x, points[i].y - midpoint.y};
+	        }
+	        //Vector2 point1Origin = {point1.x - midpoint.x, point1.y - midpoint.y};
+	        //Vector2 point2Origin = {point2.x - midpoint.x, point2.y - midpoint.y};
+
+	        Vector2 pointsOriginRot[numPoints];
+	        // Rotate points using appropriate rotation matrix relative to the origin
+	        if (IsKeyDown(KEY_RIGHT)) {
+	            // Clockwise rotation
+		    for (int i = 0; i < numPoints; i++) {
+	                pointsOriginRot[i] = {cos(theta)*pointsOrigin[i].x -sin(theta)*pointsOrigin[i].y, sin(theta)*pointsOrigin[i].x + cos(theta)*pointsOrigin[i].y};
+		    }
+	        } else {
+	    	    // Anticlockwise rotation
+		    for (int i = 0; i < numPoints; i++) {
+	                pointsOriginRot[i] = {cos(theta)*pointsOrigin[i].x + sin(theta)*pointsOrigin[i].y, -sin(theta)*pointsOrigin[i].x + cos(theta)*pointsOrigin[i].y};
+		    }
+	        }
+	        // Translate points back to absolute locations
+	        for (int i = 0; i < numPoints; i++) {
+	            points[i] = {pointsOriginRot[i].x + midpoint.x, pointsOriginRot[i].y + midpoint.y};
+	        }
+	    }
+
+	    // Calculate the direction of travel (the direction from point1 to point0
+	    deltaXShip = points[0].x - points[1].x;
+	    deltaYShip = points[0].y - points[1].y;
+	    
+	    // To avoid extra computations, just loop back if midpoint is at least the ship's length off the screen
+            // TODO: Avoid repetition here
+	    if (midpoint.x > SCREEN_WIDTH + length) {
+	        for (int i = 0; i < numPoints; i++) {
+	            points[i].x -= SCREEN_WIDTH + length*2;
+	        }
+	    } else if (midpoint.x < -length) {
+	        for (int i = 0; i < numPoints; i++) {
+		    points[i].x += SCREEN_WIDTH + length*2;
+		}
+	    }
+
+	    if (midpoint.y > SCREEN_HEIGHT + length) {
+	        for (int i = 0; i < numPoints; i++) {
+	            points[i].y -= SCREEN_HEIGHT + length*2;
+	        }
+	    } else if (midpoint.y < -length) {
+	        for (int i = 0; i < numPoints; i++) {
+		    points[i].y += SCREEN_HEIGHT + length*2;
+                }
+            }
+
+	    // Move ship forwards
+	    if (IsKeyDown(KEY_UP)) {
+                
+		float accelByShipLength = accel / length;
+
+	        //float deltaX;
+	        //float deltaY;
+
+	        if (deltaXShip != 0.0) {
+	            velocX += deltaXShip * accelByShipLength;
+	            velocY += deltaYShip * accelByShipLength;
+	        } else {
+	            // Infinite gradient. No x delta
+	            velocY -= accel;
+	            velocX = 0;
+	        }
+	    }
+	    // Given a known velocity with speed component s and direction g (dy/dx), the x component
+	    // delta x = sqrt(s - (1 + (dy/dx)) and the y component delta y = sqrt(s - (delta x)^2) 
+	    // So over a discrete time replace s with the distance travelled (s*deltat) in the direction of
+	    // velocity and you can use this to work out how far you should shift in the x and
+	    // y direction, which makes intuitive sense since deltaX is sqrt(s) for zero gradient
+	    // and deltaY = sqrt(s) for infinite gradient (X*2 + y*2 = s * deltat)
+	    //float deltaX = sqrt(pSpeed - (1 + gradient));
+	    //float deltaY = sqrt(pSpeed - deltaX*2);
+
+	    // Alternatively, the ratio of speed to ship length will let you map deltay/delta x between
+	    // points 0 and 1 to the x and y shift for the time step
+
+	    for (int i = 0; i < numPoints; i++) {
+	        points[i].x += velocX;
+	        points[i].y += velocY;
+	    }
+
+	    // Recalculate the midpoint	    
+            //pMidpoint = {(pPoints[0].x + pPoints[1].x)/2, (pPoints[0].y + pPoints[0].y)/2};
+    	    midpoint = {(points[0].x + points[1].x)/2 - (points[0].x - points[1].x)/4, (points[0].y + points[1].y)/2 - (points[0].y - points[1].y) / 4}; // Shift back to 1/4 along midline
+
+            // Decay the speed
+	    velocX *= dragCoeff;
+            velocY *= dragCoeff;	
+
+	    DrawTriangle(points[10], points[9], points[8], IsKeyDown(KEY_UP) ? ORANGE : BLACK);
+	    DrawLine(points[0].x, points[0].y, points[1].x, points[1].y, BLACK);
+	    DrawLine(points[2].x, points[2].y, points[3].x, points[3].y, WHITE);
+	    DrawLine(points[4].x, points[4].y, points[5].x, points[5].y, WHITE);
+	    DrawLine(points[6].x, points[6].y, points[7].x, points[7].y, WHITE);
+        }
+};
+
 GameState menu_screen(const int& screenWidthRef, const int& screenHeightRef) {
         
     GameState state = MENU;
@@ -355,6 +364,35 @@ GameState next_level_screen(int& levelRef, const int& screenWidthRef, const int&
     std::string textStr = "LEVEL " + std::to_string(levelRef - 1) + " COMPLETE!";
     const char* text = textStr.c_str();
     const char* subText = "PRESS 'N' TO BEGIN NEXT LEVEL";
+  
+    int textFontSize = 40;
+    int subTextFontSize = 20;
+  
+    int textWidth = MeasureText(text, textFontSize);
+    int subTextWidth = MeasureText(subText, subTextFontSize);
+   
+    DrawText(text, (screenWidthRef/2) - (textWidth/2), screenHeightRef/2 - 50, textFontSize, WHITE);
+    DrawText(subText, (screenWidthRef/2) - (subTextWidth/2), screenHeightRef/2, subTextFontSize, WHITE);
+
+    EndDrawing();
+
+    return state;
+}
+
+GameState game_over_screen(int& levelRef, const int& screenWidthRef, const int& screenHeightRef) {
+    
+    GameState state = GAME_OVER;
+
+    if(IsKeyDown(KEY_R)) {
+        state = PLAYING;
+    }
+
+    BeginDrawing();
+    ClearBackground(BLACK);
+
+    const char* text = "GAME OVER!";
+    std::string subTextStr = "YOU REACHED LEVEL " + std::to_string(levelRef - 1) + ". PRESS 'R' TO RESTART";
+    const char* subText = subTextStr.c_str();
   
     int textFontSize = 40;
     int subTextFontSize = 20;
@@ -419,6 +457,10 @@ int main() {
 
 	if (currentState == NEXT_LEVEL) {
 	    currentState = next_level_screen(level, SCREEN_WIDTH, SCREEN_HEIGHT);
+	}
+
+	if (currentState == GAME_OVER) {
+	    currentState = game_over_screen(level, SCREEN_WIDTH, SCREEN_HEIGHT);
 	}
         
 	else if (currentState == PLAYING) {
@@ -489,8 +531,13 @@ int main() {
 	            return bullet.IsOffScreen(SCREEN_WIDTH, SCREEN_HEIGHT);
 	        }), bullets.end());
 
-            // Draw all asteroids
+            // Check if any asteroids have hit the player
+
+	    // Draw all asteroids and check if any are hitting the player
             for (auto& asteroid : asteroids) {
+	        if (p.CollidedWithAsteroid(asteroid)) {
+		    currentState = GAME_OVER;		
+		}
 	        asteroid.Draw();
 	    }
 
