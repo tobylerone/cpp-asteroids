@@ -4,11 +4,20 @@
 #include <algorithm>
 #include <random>
 
+
+enum GameState {
+    MENU,
+    PLAYING,
+    NEXT_LEVEL,
+    GAME_OVER
+};
+
+
 class Player {
  
      public:
-	 int screenWidth;
-	 int screenHeight;
+	 int SCREEN_WIDTH;
+	 int SCREEN_HEIGHT;
          float accel = 0.2; // pixels per frame^2
 	 const double pi = 3.141592653589793238;
          float dragCoeff = 0.99;
@@ -28,26 +37,26 @@ class Player {
 	 std::vector<Vector2> points;
 	 Vector2 midpoint;
     
-	 Player(int sw, int sh) : screenWidth(sw), screenHeight(sh) {
+	 Player(int sw, int sh) : SCREEN_WIDTH(sw), SCREEN_HEIGHT(sh) {
 	
              // Main line down the middle of the ship
-             Vector2 point0 = {screenWidth/2, screenHeight/2 - length/2};
-             Vector2 point1 = {screenWidth/2, screenHeight/2 + length/2};
+             Vector2 point0 = {SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - length/2};
+             Vector2 point1 = {SCREEN_WIDTH/2, SCREEN_HEIGHT/2 + length/2};
 
              // Perpendicular bar at the back of the ship
-             Vector2 point2 = {screenWidth/2 - width/2, screenHeight/2 + length/2};
-             Vector2 point3 = {screenWidth/2 + width/2, screenHeight/2 + length/2};
+             Vector2 point2 = {SCREEN_WIDTH/2 - width/2, SCREEN_HEIGHT/2 + length/2};
+             Vector2 point3 = {SCREEN_WIDTH/2 + width/2, SCREEN_HEIGHT/2 + length/2};
 
              // Side panels
              Vector2 point4 = point0;
-             Vector2 point5 = {screenWidth/2 - width/2 - (width * 0.1), screenHeight/2 + length/2 + (length * 0.1)};
+             Vector2 point5 = {SCREEN_WIDTH/2 - width/2 - (width * 0.1), SCREEN_HEIGHT/2 + length/2 + (length * 0.1)};
              Vector2 point6 = point0;
-             Vector2 point7 = {screenWidth/2 + width/2 + (width * 0.1), screenHeight/2 + length/2 + (length * 0.1)};
+             Vector2 point7 = {SCREEN_WIDTH/2 + width/2 + (width * 0.1), SCREEN_HEIGHT/2 + length/2 + (length * 0.1)};
     
              // Thruster
-             Vector2 point8 = {screenWidth/2 - width/4, screenHeight/2 + length/2};
-             Vector2 point9 = {screenWidth/2 + width/4, screenHeight/2 + length/2};
-             Vector2 point10 = {screenWidth/2, screenHeight/2 + 3*length/4};
+             Vector2 point8 = {SCREEN_WIDTH/2 - width/4, SCREEN_HEIGHT/2 + length/2};
+             Vector2 point9 = {SCREEN_WIDTH/2 + width/4, SCREEN_HEIGHT/2 + length/2};
+             Vector2 point10 = {SCREEN_WIDTH/2, SCREEN_HEIGHT/2 + 3*length/4};
 
              points = {point0, point1, point2, point3, point4, point5, point6, point7, point8, point9, point10};
 
@@ -94,23 +103,23 @@ class Player {
 	    
 	    // To avoid extra computations, just loop back if midpoint is at least the ship's length off the screen
             // TODO: Avoid repetition here
-	    if (midpoint.x > screenWidth + length) {
+	    if (midpoint.x > SCREEN_WIDTH + length) {
 	        for (int i = 0; i < numPoints; i++) {
-	            points[i].x -= screenWidth + length*2;
+	            points[i].x -= SCREEN_WIDTH + length*2;
 	        }
 	    } else if (midpoint.x < -length) {
 	        for (int i = 0; i < numPoints; i++) {
-		    points[i].x += screenWidth + length*2;
+		    points[i].x += SCREEN_WIDTH + length*2;
 		}
 	    }
 
-	    if (midpoint.y > screenHeight + length) {
+	    if (midpoint.y > SCREEN_HEIGHT + length) {
 	        for (int i = 0; i < numPoints; i++) {
-	            points[i].y -= screenHeight + length*2;
+	            points[i].y -= SCREEN_HEIGHT + length*2;
 	        }
 	    } else if (midpoint.y < -length) {
 	        for (int i = 0; i < numPoints; i++) {
-		    points[i].y += screenHeight + length*2;
+		    points[i].y += SCREEN_HEIGHT + length*2;
                 }
             }
 
@@ -164,15 +173,16 @@ class Player {
         }
 };
 
+
 class Bullet {
     public:
         Vector2 position;
 	float velocX;
 	float velocY;
-	float radius;
-	Color color;
+	float radius = 2;
+	Color color = WHITE;
 
-	Bullet(Vector2 pos, float dx, float dy, float r, Color c): position(pos), velocX(dx), velocY(dy), radius(r), color(c) {}
+	Bullet(Vector2 pos, float dx, float dy): position(pos), velocX(dx), velocY(dy) {}
 	
 	void Draw() {
 	    // Update the positions
@@ -181,10 +191,11 @@ class Bullet {
 	    DrawCircleV(position, radius, color);
 	}
 
-        bool IsOffScreen(int screenWidth, int screenHeight) {
-	    return (position.x < 0 || position.x > screenWidth || position.y < 0 || position.y > screenHeight);
+        bool IsOffScreen(int SCREEN_WIDTH, int SCREEN_HEIGHT) {
+	    return (position.x < 0 || position.x > SCREEN_WIDTH || position.y < 0 || position.y > SCREEN_HEIGHT);
 	}
 };
+
 
 class PolarCoordinate {
     public:
@@ -201,6 +212,7 @@ class PolarCoordinate {
         }
 };
 
+
 class Asteroid {
     public:
         Vector2 position;
@@ -213,14 +225,14 @@ class Asteroid {
 	int spikinesses[3] = {4, 6, 10};
 	int spikiness; // Standard deviation of the random gaussian process that chooses the euclidian distance from the asteroid's centroid to each vertex, with the radius being the mean
 	Color colour;
-	int screenWidth;
-	int screenHeight;
+	int SCREEN_WIDTH;
+	int SCREEN_HEIGHT;
 
 	// Keep both for now. TODO: Know numVertices so don't want these to have dynamic length
 	std::vector<PolarCoordinate> polarVertices;
 	std::vector<Vector2> cartesianVertices;
 
-	Asteroid(Vector2 pos, float dx, float dy, int siz, int nVert, Color col, int sWidth, int sHeight): position(pos), velocX(dx), velocY(dy), size(siz), numVertices(nVert), colour(col), polarVertices(nVert), cartesianVertices(nVert), screenWidth(sWidth), screenHeight(sHeight) {
+	Asteroid(Vector2 pos, float dx, float dy, int siz, int nVert, Color col, int sWidth, int sHeight): position(pos), velocX(dx), velocY(dy), size(siz), numVertices(nVert), colour(col), polarVertices(nVert), cartesianVertices(nVert), SCREEN_WIDTH(sWidth), SCREEN_HEIGHT(sHeight) {
             
             // TODO: Avoid repeating this
 	    const double pi = 3.141592653589793238;
@@ -263,10 +275,10 @@ class Asteroid {
 	    // TODO: Just store the largest vertex magnitude and use this as the offset.
 	    float offset = (2*radius) + (3*spikiness);
 	    // Check if off screen
-            if (position.x > screenWidth + offset) position.x = -offset;
-	    if (position.x < -offset) position.x = screenWidth + offset;
-            if (position.y > screenHeight + offset) position.y = -offset;
-	    if (position.y < -offset) position.y = screenHeight + offset;
+            if (position.x > SCREEN_WIDTH + offset) position.x = -offset;
+	    if (position.x < -offset) position.x = SCREEN_WIDTH + offset;
+            if (position.y > SCREEN_HEIGHT + offset) position.y = -offset;
+	    if (position.y < -offset) position.y = SCREEN_HEIGHT + offset;
             
 	    // TODO: Put this all in a single for loop
 	    // TODO: Rather than keeping track of all cartesian vertices, it will be easier to change the origin
@@ -301,6 +313,63 @@ class Asteroid {
 	}
 };
 
+GameState menu_screen(const int& screenWidthRef, const int& screenHeightRef) {
+        
+    GameState state = MENU;
+
+    if(IsKeyDown(KEY_SPACE)) {
+        state = PLAYING;
+    }
+    
+    BeginDrawing();
+    ClearBackground(BLACK);
+
+    const char* text = "ASTEROIDS";
+    const char* subText = "PRESS ENTER TO PLAY";
+  
+    int textFontSize = 60;
+    int subTextFontSize = 20;
+  
+    int textWidth = MeasureText(text, textFontSize);
+    int subTextWidth = MeasureText(subText, subTextFontSize);
+   
+    DrawText(text, (screenWidthRef/2) - (textWidth/2), screenHeightRef/2 - 70, textFontSize, WHITE);
+    DrawText(subText, (screenWidthRef/2) - (subTextWidth/2), screenHeightRef/2, subTextFontSize, WHITE);
+    
+    EndDrawing();
+
+    return state;
+}
+
+GameState next_level_screen(int& levelRef, const int& screenWidthRef, const int& screenHeightRef) {
+    
+    GameState state = NEXT_LEVEL;
+
+    if(IsKeyDown(KEY_N)) {
+        state = PLAYING;
+    }
+
+    BeginDrawing();
+    ClearBackground(BLACK);
+
+    std::string textStr = "LEVEL " + std::to_string(levelRef - 1) + " COMPLETE!";
+    const char* text = textStr.c_str();
+    const char* subText = "PRESS 'N' TO BEGIN NEXT LEVEL";
+  
+    int textFontSize = 40;
+    int subTextFontSize = 20;
+  
+    int textWidth = MeasureText(text, textFontSize);
+    int subTextWidth = MeasureText(subText, subTextFontSize);
+   
+    DrawText(text, (screenWidthRef/2) - (textWidth/2), screenHeightRef/2 - 50, textFontSize, WHITE);
+    DrawText(subText, (screenWidthRef/2) - (subTextWidth/2), screenHeightRef/2, subTextFontSize, WHITE);
+
+    EndDrawing();
+
+    return state;
+}
+
 int main() {
 
     // Define random uniform process
@@ -308,120 +377,136 @@ int main() {
     std::mt19937 gen(rd());
     
     std::uniform_real_distribution<> uniformDis(-1.0, 1.0);
-    
-    // Initialization
-    int screenWidth = 1000;
-    int screenHeight = 700;
-    int fps = 60;
-    const double pi = 3.141592653589793238;
 
-    int score = 0;
+    GameState currentState = MENU;
+ 
+    // Initialization
+    const int SCREEN_WIDTH = 1400;
+    const int SCREEN_HEIGHT = 800;
+    const int FPS = 60;
+    const double pi = 3.141592653589793238;
+    const double BULLET_SPEED = 20.0;
     
+    int level = 1;
+
     std::vector<Bullet> bullets;
-    int bRadius = 2;
-    float bSpeed = 30.0;
-    Color bColor = WHITE;
     // Wait a period between successive bullet object creations
-    int bFramesBetweenSpawn = 8;
+    const int bFramesBetweenSpawn = 6;
     int bFramesUntilNextSpawn = 0;
 
     raylib::Color textColor(GREEN);
-    raylib::Window w(screenWidth, screenHeight, "Asteroids");
+    raylib::Window w(SCREEN_WIDTH, SCREEN_HEIGHT, "Asteroids");
     
-    SetTargetFPS(fps);
+    SetTargetFPS(FPS);
 
-    Player p = Player(screenWidth, screenHeight);
+    Player p = Player(SCREEN_WIDTH, SCREEN_HEIGHT);
 
     // The number of smaller asteroids created by destroying a larger one
     int asteroidSpawnFactor = 2;
 
-    Asteroid roid1 = Asteroid({100, 100}, 3, 4, 3, 10, WHITE, screenWidth, screenHeight);
-    Asteroid roid2 = Asteroid({600, 200}, 8, -5, 3, 7, WHITE, screenWidth, screenHeight);
-    Asteroid roid3 = Asteroid({200, 500}, -2, -3, 3, 12, WHITE, screenWidth, screenHeight);
+    Asteroid roid1 = Asteroid({100, 100}, 1, 3.5, 3, 10, WHITE, SCREEN_WIDTH, SCREEN_HEIGHT);
+    Asteroid roid2 = Asteroid({600, 200}, 2.5, -3, 3, 7, WHITE, SCREEN_WIDTH, SCREEN_HEIGHT);
+    Asteroid roid3 = Asteroid({200, 500}, -2, -3, 3, 12, WHITE, SCREEN_WIDTH, SCREEN_HEIGHT);
     
     std::vector<Asteroid> asteroids = {roid1, roid2, roid3};
 
     // Main game loop
     while (!w.ShouldClose()) // Detect window close button or ESC key
     {
-	if (IsKeyDown(KEY_SPACE)) {
-	    //Create a new bullet if enough frames have passed since the last spawn
-            if (bFramesUntilNextSpawn <= 0) {
+	if (currentState == MENU) {
+	    currentState = menu_screen(SCREEN_WIDTH, SCREEN_HEIGHT);
+	}
+
+	if (currentState == NEXT_LEVEL) {
+	    currentState = next_level_screen(level, SCREEN_WIDTH, SCREEN_HEIGHT);
+	}
+        
+	else if (currentState == PLAYING) {
+	    if (IsKeyDown(KEY_SPACE)) {
+	        //Create a new bullet if enough frames have passed since the last spawn
+                if (bFramesUntilNextSpawn <= 0) {
 	    
-                // Quick way to get the bullet x & y deltas
-	        float bVelocX = p.deltaXShip * (bSpeed/p.length);
-	        float bVelocY = p.deltaYShip * (bSpeed/p.length);
+                    // Quick way to get the bullet x & y deltas
+	            float bVelocX = p.deltaXShip * (BULLET_SPEED/p.length);
+	            float bVelocY = p.deltaYShip * (BULLET_SPEED/p.length);
 	    
-	        bullets.push_back(Bullet({p.points[0].x, p.points[0].y}, bVelocX, bVelocY, bRadius, bColor));
-	        bFramesUntilNextSpawn = bFramesBetweenSpawn;
+	            bullets.push_back(Bullet({p.points[0].x, p.points[0].y}, bVelocX, bVelocY));
+	            bFramesUntilNextSpawn = bFramesBetweenSpawn;
+	        }
 	    }
-	}
 
-	// Decrement the frame count between bullet spawning
-	if (bFramesUntilNextSpawn > 0) bFramesUntilNextSpawn--;
+	    // Decrement the frame count between bullet spawning
+	    if (bFramesUntilNextSpawn > 0) bFramesUntilNextSpawn--;
 
-        // DRAW------------------------------------------------------------------------------
-        BeginDrawing();
-        ClearBackground(BLACK);
+            // DRAW------------------------------------------------------------------------------
+            BeginDrawing();
+            ClearBackground(BLACK);
 
-	// Draw all bullets
-	for (auto& bullet : bullets) {
-	    bullet.Draw();
-	}
+	    // Draw all bullets
+	    for (auto& bullet : bullets) {
+	        bullet.Draw();
+	    }
 
-	// Split or remove asteroids that have been hit by a bullet depending on their size
-	std::vector<Asteroid> newAsteroids = {};
+	    // Split or remove asteroids that have been hit by a bullet depending on their size
+	    std::vector<Asteroid> newAsteroids = {};
 	
-	for (auto it = bullets.begin(); it != bullets.end(); ++it) {
-	    // Check if bullet is inside any asteroid
-	    for (auto asteroid_it = asteroids.begin(); asteroid_it != asteroids.end();) {
-	        if (asteroid_it->ContainsBullet(it->position)) {
-		    // Remove the asteroid, spawn new smaller asteroids to resemble the
-		    // breaking up of the old, larger one
-		    if (asteroid_it->size > 1) {
-		        
-			int newSize = asteroid_it->size - 1;
+	    for (auto it = bullets.begin(); it != bullets.end(); ++it) {
+	        // Check if bullet is inside any asteroid
+	        for (auto asteroid_it = asteroids.begin(); asteroid_it != asteroids.end();) {
+	            if (asteroid_it->ContainsBullet(it->position)) {
+		        // Remove the asteroid, spawn new smaller asteroids to resemble the
+		        // breaking up of the old, larger one
+		        if (asteroid_it->size > 1) {
+		         
+			    int newSize = asteroid_it->size - 1;
 			
-			for (int i=0; i<asteroidSpawnFactor; i++){
-			    
-			    // Vary the position to within +- 1% of screen dimensions compared with original asteroid
-			    Vector2 newPosition = {asteroid_it->position.x + (screenWidth/100) * uniformDis(gen) , asteroid_it->position.y + (screenHeight/100) * uniformDis(gen)};
-			    // Choose new x and y components of velocity within +-10% of the original asteroid's values
-			    float newVelocX = asteroid_it->velocX + asteroid_it->velocX * uniformDis(gen) * 0.1;
-			    float newVelocY = asteroid_it->velocY + asteroid_it->velocY * uniformDis(gen) * 0.1;
-			    int newNumVertices = asteroid_it->numVertices;
+			    for (int i=0; i<asteroidSpawnFactor; i++){
+			     
+			        // Vary the position to within +- 1% of screen dimensions compared with original asteroid
+			        Vector2 newPosition = {asteroid_it->position.x + (SCREEN_WIDTH/100) * uniformDis(gen) , asteroid_it->position.y + (SCREEN_HEIGHT/100) * uniformDis(gen)};
+			        // Choose new x and y components of velocity within +-10% of the original asteroid's values
+			        float newVelocX = asteroid_it->velocX + asteroid_it->velocX * uniformDis(gen) * 0.1;
+			        float newVelocY = asteroid_it->velocY + asteroid_it->velocY * uniformDis(gen) * 0.1;
+			        int newNumVertices = asteroid_it->numVertices;
 			      
-                            Asteroid newAsteroid = Asteroid(newPosition, newVelocX, newVelocY, newSize, newNumVertices, WHITE, screenWidth, screenHeight);
-			    newAsteroids.push_back(newAsteroid);
-			}
-		    } 
-		    asteroid_it = asteroids.erase(asteroid_it);
-		    // increment the score and continue iterating
-		    score++;
-		} else {
-	            ++asteroid_it;
-		}
+                                Asteroid newAsteroid = Asteroid(newPosition, newVelocX, newVelocY, newSize, newNumVertices, WHITE, SCREEN_WIDTH, SCREEN_HEIGHT);
+			        newAsteroids.push_back(newAsteroid);
+			    }
+		        } 
+		        asteroid_it = asteroids.erase(asteroid_it);
+		    } else {
+	                ++asteroid_it;
+		    }
+	        }
 	    }
-	}
 
-	// Add new asteroids to the full list
-	asteroids.insert(asteroids.end(), newAsteroids.begin(), newAsteroids.end());
+	    // Add new asteroids to the full list
+	    asteroids.insert(asteroids.end(), newAsteroids.begin(), newAsteroids.end());
 
-	// Remove bullets that are off screen
-	bullets.erase(std::remove_if(bullets.begin(), bullets.end(),
-	    [screenWidth, screenHeight](Bullet& bullet) {
-	        return bullet.IsOffScreen(screenWidth, screenHeight);
-	    }), bullets.end());
+	    // Remove bullets that are off screen
+	    bullets.erase(std::remove_if(bullets.begin(), bullets.end(),
+	        [SCREEN_WIDTH, SCREEN_HEIGHT](Bullet& bullet) {
+	            return bullet.IsOffScreen(SCREEN_WIDTH, SCREEN_HEIGHT);
+	        }), bullets.end());
 
-        // Draw all asteroids
-        for (auto& asteroid : asteroids) {
-	    asteroid.Draw();
-	}
+            // Draw all asteroids
+            for (auto& asteroid : asteroids) {
+	        asteroid.Draw();
+	    }
 
-	p.Draw();
+	    p.Draw();
 
-	textColor.DrawText("Score: " + std::to_string(score) + "", 10, 10, 20);	
-	EndDrawing();
+	    textColor.DrawText("Level: " + std::to_string(level) + "", 10, 10, 20);	
+	    EndDrawing();
+
+	    // Check if asteroids vector is empty and move to next level if so
+	    if (asteroids.empty()) {
+	        level++;
+                // Load in the next set of asteroids
+                asteroids = {roid1, roid2, roid3};
+                currentState = NEXT_LEVEL;
+	    }
+        }
     }
 
     return 0;
