@@ -4,12 +4,37 @@
 #include <algorithm>
 #include <random>
 
-
-enum GameState {
+enum GameStatus {
     MENU,
     PLAYING,
     NEXT_LEVEL,
     GAME_OVER
+};
+
+namespace GameConstants {
+    const int SCREEN_WIDTH = 1400;
+    const int SCREEN_HEIGHT = 800;
+    const int FPS = 60;
+    const double pi = 3.141592653589793238;
+    const double BULLET_SPEED = 20.0;
+}
+
+// Create an alias
+namespace GC = GameConstants;
+    
+struct GameState {
+    
+    int level = 1;
+    GameStatus status;
+
+    // Create random number generators for uniform real distribution and gaussian distribution
+    // TODO: Move this somewhere else
+    std::random_device rd; // Create seed
+    std::mt19937 gen;
+    std::uniform_real_distribution<> uniformDis;
+
+    GameState(): rd(), gen(rd()), uniformDis(0.0, 1.0) {}
+
 };
 
 class Bullet {
@@ -72,9 +97,6 @@ class Asteroid {
 
 	Asteroid(Vector2 pos, float dx, float dy, int siz, int nVert, Color col, int sWidth, int sHeight): position(pos), velocX(dx), velocY(dy), size(siz), numVertices(nVert), colour(col), polarVertices(nVert), cartesianVertices(nVert), SCREEN_WIDTH(sWidth), SCREEN_HEIGHT(sHeight) {
             
-            // TODO: Avoid repeating this
-	    const double pi = 3.141592653589793238;
-            
 	    // Check size is within the bounds 1-3 and set the radius
 	    if (size < 1) size = 1;
 	    if (size > 3) size = 3;
@@ -94,10 +116,10 @@ class Asteroid {
 
 	    for (int i = 0; i < numVertices; i++) {
 	        polarVertices[i].magnitude = radius + gaussDis(gen);
-	        //polarVertices[i].theta = 2*pi * uniformDis(gen);	
+	        //polarVertices[i].theta = 2*GC::pi * uniformDis(gen);	
 	    	// Theta has to be ordered to avoid lines overlapping
 		// TODO: Don't evenly distribute theta in a circle. Add some randomness
-		polarVertices[i].theta = i*(2*pi/numVertices);
+		polarVertices[i].theta = i*(2*GC::pi/numVertices);
 		cartesianVertices[i] = polarVertices[i].to_cartesian(position);
             }
 	}
@@ -157,7 +179,6 @@ class Player {
 	 int SCREEN_WIDTH;
 	 int SCREEN_HEIGHT;
          float accel = 0.2; // pixels per frame^2
-	 const double pi = 3.141592653589793238;
          float dragCoeff = 0.99;
 	 int length = 50;
          int width = 20;
@@ -170,7 +191,7 @@ class Player {
 	 float deltaYShip;
          
 	 // Radians to rotate by per frame (0.02 radians)
-         float theta = (2 * pi / 50);
+         float theta = (2 * GC::pi / 50);
 
 	 std::vector<Vector2> points;
 	 Vector2 midpoint;
@@ -322,19 +343,17 @@ class Player {
         }
 };
 
-GameState menu_screen(const int& screenWidthRef, const int& screenHeightRef) {
-        
-    GameState state = MENU;
+void menu_screen(GameState& state) {
 
-    if(IsKeyDown(KEY_SPACE)) {
-        state = PLAYING;
+    if(IsKeyDown(KEY_S)) {
+        state.status = PLAYING;
     }
     
     BeginDrawing();
     ClearBackground(BLACK);
 
     const char* text = "ASTEROIDS";
-    const char* subText = "PRESS ENTER TO PLAY";
+    const char* subText = "PRESS 'S' TO PLAY";
   
     int textFontSize = 60;
     int subTextFontSize = 20;
@@ -342,26 +361,22 @@ GameState menu_screen(const int& screenWidthRef, const int& screenHeightRef) {
     int textWidth = MeasureText(text, textFontSize);
     int subTextWidth = MeasureText(subText, subTextFontSize);
    
-    DrawText(text, (screenWidthRef/2) - (textWidth/2), screenHeightRef/2 - 70, textFontSize, WHITE);
-    DrawText(subText, (screenWidthRef/2) - (subTextWidth/2), screenHeightRef/2, subTextFontSize, WHITE);
+    DrawText(text, (GC::SCREEN_WIDTH/2) - (textWidth/2), GC::SCREEN_HEIGHT/2 - 70, textFontSize, WHITE);
+    DrawText(subText, (GC::SCREEN_WIDTH/2) - (subTextWidth/2), GC::SCREEN_HEIGHT/2, subTextFontSize, WHITE);
     
     EndDrawing();
-
-    return state;
 }
 
-GameState next_level_screen(int& levelRef, const int& screenWidthRef, const int& screenHeightRef) {
+void next_level_screen(GameState& state) {
     
-    GameState state = NEXT_LEVEL;
-
     if(IsKeyDown(KEY_N)) {
-        state = PLAYING;
+        state.status = PLAYING;
     }
 
     BeginDrawing();
     ClearBackground(BLACK);
 
-    std::string textStr = "LEVEL " + std::to_string(levelRef - 1) + " COMPLETE!";
+    std::string textStr = "LEVEL " + std::to_string(state.level - 1) + " COMPLETE!";
     const char* text = textStr.c_str();
     const char* subText = "PRESS 'N' TO BEGIN NEXT LEVEL";
   
@@ -371,27 +386,23 @@ GameState next_level_screen(int& levelRef, const int& screenWidthRef, const int&
     int textWidth = MeasureText(text, textFontSize);
     int subTextWidth = MeasureText(subText, subTextFontSize);
    
-    DrawText(text, (screenWidthRef/2) - (textWidth/2), screenHeightRef/2 - 50, textFontSize, WHITE);
-    DrawText(subText, (screenWidthRef/2) - (subTextWidth/2), screenHeightRef/2, subTextFontSize, WHITE);
+    DrawText(text, (GC::SCREEN_WIDTH/2) - (textWidth/2), GC::SCREEN_HEIGHT/2 - 50, textFontSize, WHITE);
+    DrawText(subText, (GC::SCREEN_WIDTH/2) - (subTextWidth/2), GC::SCREEN_HEIGHT/2, subTextFontSize, WHITE);
 
     EndDrawing();
-
-    return state;
 }
 
-GameState game_over_screen(int& levelRef, const int& screenWidthRef, const int& screenHeightRef) {
+void game_over_screen(GameState& state) {
     
-    GameState state = GAME_OVER;
-
     if(IsKeyDown(KEY_R)) {
-        state = PLAYING;
+        state.status = PLAYING;
     }
 
     BeginDrawing();
     ClearBackground(BLACK);
 
     const char* text = "GAME OVER!";
-    std::string subTextStr = "YOU REACHED LEVEL " + std::to_string(levelRef - 1) + ". PRESS 'R' TO RESTART";
+    std::string subTextStr = "YOU REACHED LEVEL " + std::to_string(state.level - 1) + ". PRESS 'R' TO RESTART";
     const char* subText = subTextStr.c_str();
   
     int textFontSize = 40;
@@ -400,12 +411,23 @@ GameState game_over_screen(int& levelRef, const int& screenWidthRef, const int& 
     int textWidth = MeasureText(text, textFontSize);
     int subTextWidth = MeasureText(subText, subTextFontSize);
    
-    DrawText(text, (screenWidthRef/2) - (textWidth/2), screenHeightRef/2 - 50, textFontSize, WHITE);
-    DrawText(subText, (screenWidthRef/2) - (subTextWidth/2), screenHeightRef/2, subTextFontSize, WHITE);
+    DrawText(text, (GC::SCREEN_WIDTH/2) - (textWidth/2), GC::SCREEN_HEIGHT/2 - 50, textFontSize, WHITE);
+    DrawText(subText, (GC::SCREEN_WIDTH/2) - (subTextWidth/2), GC::SCREEN_HEIGHT/2, subTextFontSize, WHITE);
 
     EndDrawing();
+}
 
-    return state;
+std::vector<Asteroid> create_asteroids(GameState& state, int numAsteroids) {
+    
+    std::vector<Asteroid> asteroids {};
+
+    for (int i = 0; i < numAsteroids; i++) {
+	Asteroid ast = Asteroid({200, 500}, -2, -3, 3, 12, WHITE, GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
+        asteroids.push_back(ast);
+    }
+
+    return asteroids;    
+
 }
 
 int main() {
@@ -416,16 +438,8 @@ int main() {
     
     std::uniform_real_distribution<> uniformDis(-1.0, 1.0);
 
-    GameState currentState = MENU;
- 
-    // Initialization
-    const int SCREEN_WIDTH = 1400;
-    const int SCREEN_HEIGHT = 800;
-    const int FPS = 60;
-    const double pi = 3.141592653589793238;
-    const double BULLET_SPEED = 20.0;
-    
-    int level = 1;
+    GameState state;
+    state.status = MENU;
 
     std::vector<Bullet> bullets;
     // Wait a period between successive bullet object creations
@@ -433,44 +447,40 @@ int main() {
     int bFramesUntilNextSpawn = 0;
 
     raylib::Color textColor(GREEN);
-    raylib::Window w(SCREEN_WIDTH, SCREEN_HEIGHT, "Asteroids");
+    raylib::Window w(GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT, "Asteroids");
     
-    SetTargetFPS(FPS);
+    SetTargetFPS(GC::FPS);
 
-    Player p = Player(SCREEN_WIDTH, SCREEN_HEIGHT);
+    Player p = Player(GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
 
     // The number of smaller asteroids created by destroying a larger one
     int asteroidSpawnFactor = 2;
 
-    Asteroid roid1 = Asteroid({100, 100}, 1, 3.5, 3, 10, WHITE, SCREEN_WIDTH, SCREEN_HEIGHT);
-    Asteroid roid2 = Asteroid({600, 200}, 2.5, -3, 3, 7, WHITE, SCREEN_WIDTH, SCREEN_HEIGHT);
-    Asteroid roid3 = Asteroid({200, 500}, -2, -3, 3, 12, WHITE, SCREEN_WIDTH, SCREEN_HEIGHT);
-    
-    std::vector<Asteroid> asteroids = {roid1, roid2, roid3};
-
+    std::vector<Asteroid> asteroids = create_asteroids(state, 1);
+   
     // Main game loop
     while (!w.ShouldClose()) // Detect window close button or ESC key
     {
-	if (currentState == MENU) {
-	    currentState = menu_screen(SCREEN_WIDTH, SCREEN_HEIGHT);
+	if (state.status == MENU) {
+	    menu_screen(state);
 	}
 
-	if (currentState == NEXT_LEVEL) {
-	    currentState = next_level_screen(level, SCREEN_WIDTH, SCREEN_HEIGHT);
+	if (state.status == NEXT_LEVEL) {
+	    next_level_screen(state);
 	}
 
-	if (currentState == GAME_OVER) {
-	    currentState = game_over_screen(level, SCREEN_WIDTH, SCREEN_HEIGHT);
+	if (state.status == GAME_OVER) {
+	    game_over_screen(state);
 	}
         
-	else if (currentState == PLAYING) {
+	else if (state.status == PLAYING) {
 	    if (IsKeyDown(KEY_SPACE)) {
 	        //Create a new bullet if enough frames have passed since the last spawn
                 if (bFramesUntilNextSpawn <= 0) {
 	    
                     // Quick way to get the bullet x & y deltas
-	            float bVelocX = p.deltaXShip * (BULLET_SPEED/p.length);
-	            float bVelocY = p.deltaYShip * (BULLET_SPEED/p.length);
+	            float bVelocX = p.deltaXShip * (GC::BULLET_SPEED/p.length);
+	            float bVelocY = p.deltaYShip * (GC::BULLET_SPEED/p.length);
 	    
 	            bullets.push_back(Bullet({p.points[0].x, p.points[0].y}, bVelocX, bVelocY));
 	            bFramesUntilNextSpawn = bFramesBetweenSpawn;
@@ -505,13 +515,13 @@ int main() {
 			    for (int i=0; i<asteroidSpawnFactor; i++){
 			     
 			        // Vary the position to within +- 1% of screen dimensions compared with original asteroid
-			        Vector2 newPosition = {asteroid_it->position.x + (SCREEN_WIDTH/100) * uniformDis(gen) , asteroid_it->position.y + (SCREEN_HEIGHT/100) * uniformDis(gen)};
+			        Vector2 newPosition = {asteroid_it->position.x + (GC::SCREEN_WIDTH/100) * uniformDis(gen) , asteroid_it->position.y + (GC::SCREEN_HEIGHT/100) * uniformDis(gen)};
 			        // Choose new x and y components of velocity within +-10% of the original asteroid's values
 			        float newVelocX = asteroid_it->velocX + asteroid_it->velocX * uniformDis(gen) * 0.1;
 			        float newVelocY = asteroid_it->velocY + asteroid_it->velocY * uniformDis(gen) * 0.1;
 			        int newNumVertices = asteroid_it->numVertices;
 			      
-                                Asteroid newAsteroid = Asteroid(newPosition, newVelocX, newVelocY, newSize, newNumVertices, WHITE, SCREEN_WIDTH, SCREEN_HEIGHT);
+                                Asteroid newAsteroid = Asteroid(newPosition, newVelocX, newVelocY, newSize, newNumVertices, WHITE, GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
 			        newAsteroids.push_back(newAsteroid);
 			    }
 		        } 
@@ -527,8 +537,8 @@ int main() {
 
 	    // Remove bullets that are off screen
 	    bullets.erase(std::remove_if(bullets.begin(), bullets.end(),
-	        [SCREEN_WIDTH, SCREEN_HEIGHT](Bullet& bullet) {
-	            return bullet.IsOffScreen(SCREEN_WIDTH, SCREEN_HEIGHT);
+	        [](Bullet& bullet) {
+	            return bullet.IsOffScreen(GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
 	        }), bullets.end());
 
             // Check if any asteroids have hit the player
@@ -536,22 +546,23 @@ int main() {
 	    // Draw all asteroids and check if any are hitting the player
             for (auto& asteroid : asteroids) {
 	        if (p.CollidedWithAsteroid(asteroid)) {
-		    currentState = GAME_OVER;		
+		    state.status = GAME_OVER;		
 		}
 	        asteroid.Draw();
 	    }
 
 	    p.Draw();
 
-	    textColor.DrawText("Level: " + std::to_string(level) + "", 10, 10, 20);	
+	    textColor.DrawText("Level: " + std::to_string(state.level) + "", 10, 10, 20);	
 	    EndDrawing();
 
 	    // Check if asteroids vector is empty and move to next level if so
 	    if (asteroids.empty()) {
-	        level++;
+	        state.level++;
                 // Load in the next set of asteroids
-                asteroids = {roid1, roid2, roid3};
-                currentState = NEXT_LEVEL;
+                //asteroids = {roid1, roid2, roid3};
+                asteroids = create_asteroids(state, 1);
+		state.status = NEXT_LEVEL;
 	    }
         }
     }
