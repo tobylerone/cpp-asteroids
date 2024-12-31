@@ -421,8 +421,19 @@ std::vector<Asteroid> create_asteroids(GameState& state, int numAsteroids) {
     
     std::vector<Asteroid> asteroids {};
 
+    Vector2 position;
+    float xSpeed;
+    float ySpeed;
+    // TODO: This should not be hardcoded here
+    int size = 3;
+    int numVertices;
+    
     for (int i = 0; i < numAsteroids; i++) {
-	Asteroid ast = Asteroid({200, 500}, -2, -3, 3, 12, WHITE, GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
+	position = {state.uniformDis(state.gen) * GC::SCREEN_WIDTH, state.uniformDis(state.gen) * GC::SCREEN_HEIGHT};
+	// Select speed from uniform random distribution between -3 and 3
+	xSpeed = (state.uniformDis(state.gen) * 6 - 3);
+        ySpeed = (state.uniformDis(state.gen) * 6 - 3);
+	Asteroid ast = Asteroid(position, xSpeed, ySpeed, 3, 12, WHITE, GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
         asteroids.push_back(ast);
     }
 
@@ -456,114 +467,113 @@ int main() {
     // The number of smaller asteroids created by destroying a larger one
     int asteroidSpawnFactor = 2;
 
-    std::vector<Asteroid> asteroids = create_asteroids(state, 1);
+    std::vector<Asteroid> asteroids = create_asteroids(state, 3);
    
     // Main game loop
     while (!w.ShouldClose()) // Detect window close button or ESC key
     {
-	if (state.status == MENU) {
-	    menu_screen(state);
-	}
-
-	if (state.status == NEXT_LEVEL) {
-	    next_level_screen(state);
-	}
-
-	if (state.status == GAME_OVER) {
-	    game_over_screen(state);
-	}
-        
-	else if (state.status == PLAYING) {
-	    if (IsKeyDown(KEY_SPACE)) {
-	        //Create a new bullet if enough frames have passed since the last spawn
-                if (bFramesUntilNextSpawn <= 0) {
+	switch (state.status)
+	{
+	    case MENU:
+	        menu_screen(state);
+		break;
+	    case NEXT_LEVEL:
+	        next_level_screen(state);
+                break;
+	    case GAME_OVER:
+	        game_over_screen(state);
+	        break;
+	    case PLAYING:
+	        if (IsKeyDown(KEY_SPACE)) {
+	            //Create a new bullet if enough frames have passed since the last spawn
+                    if (bFramesUntilNextSpawn <= 0) {
 	    
-                    // Quick way to get the bullet x & y deltas
-	            float bVelocX = p.deltaXShip * (GC::BULLET_SPEED/p.length);
-	            float bVelocY = p.deltaYShip * (GC::BULLET_SPEED/p.length);
+                        // Quick way to get the bullet x & y deltas
+	                float bVelocX = p.deltaXShip * (GC::BULLET_SPEED/p.length);
+	                float bVelocY = p.deltaYShip * (GC::BULLET_SPEED/p.length);
 	    
-	            bullets.push_back(Bullet({p.points[0].x, p.points[0].y}, bVelocX, bVelocY));
-	            bFramesUntilNextSpawn = bFramesBetweenSpawn;
+	                bullets.push_back(Bullet({p.points[0].x, p.points[0].y}, bVelocX, bVelocY));
+	                bFramesUntilNextSpawn = bFramesBetweenSpawn;
+	             }
 	        }
-	    }
 
-	    // Decrement the frame count between bullet spawning
-	    if (bFramesUntilNextSpawn > 0) bFramesUntilNextSpawn--;
+	        // Decrement the frame count between bullet spawning
+	        if (bFramesUntilNextSpawn > 0) bFramesUntilNextSpawn--;
 
-            // DRAW------------------------------------------------------------------------------
-            BeginDrawing();
-            ClearBackground(BLACK);
+                // DRAW------------------------------------------------------------------------------
+                BeginDrawing();
+                ClearBackground(BLACK);
 
-	    // Draw all bullets
-	    for (auto& bullet : bullets) {
-	        bullet.Draw();
-	    }
+	        // Draw all bullets
+	        for (auto& bullet : bullets) {
+	            bullet.Draw();
+	        }
 
-	    // Split or remove asteroids that have been hit by a bullet depending on their size
-	    std::vector<Asteroid> newAsteroids = {};
+	        // Split or remove asteroids that have been hit by a bullet depending on their size
+	        std::vector<Asteroid> newAsteroids = {};
 	
-	    for (auto it = bullets.begin(); it != bullets.end(); ++it) {
-	        // Check if bullet is inside any asteroid
-	        for (auto asteroid_it = asteroids.begin(); asteroid_it != asteroids.end();) {
-	            if (asteroid_it->ContainsBullet(it->position)) {
-		        // Remove the asteroid, spawn new smaller asteroids to resemble the
-		        // breaking up of the old, larger one
-		        if (asteroid_it->size > 1) {
+	        for (auto it = bullets.begin(); it != bullets.end(); ++it) {
+	            // Check if bullet is inside any asteroid
+	            for (auto asteroid_it = asteroids.begin(); asteroid_it != asteroids.end();) {
+	                if (asteroid_it->ContainsBullet(it->position)) {
+		            // Remove the asteroid, spawn new smaller asteroids to resemble the
+		            // breaking up of the old, larger one
+		            if (asteroid_it->size > 1) {
 		         
-			    int newSize = asteroid_it->size - 1;
+			        int newSize = asteroid_it->size - 1;
 			
-			    for (int i=0; i<asteroidSpawnFactor; i++){
+			        for (int i=0; i<asteroidSpawnFactor; i++){
 			     
-			        // Vary the position to within +- 1% of screen dimensions compared with original asteroid
-			        Vector2 newPosition = {asteroid_it->position.x + (GC::SCREEN_WIDTH/100) * uniformDis(gen) , asteroid_it->position.y + (GC::SCREEN_HEIGHT/100) * uniformDis(gen)};
-			        // Choose new x and y components of velocity within +-10% of the original asteroid's values
-			        float newVelocX = asteroid_it->velocX + asteroid_it->velocX * uniformDis(gen) * 0.1;
-			        float newVelocY = asteroid_it->velocY + asteroid_it->velocY * uniformDis(gen) * 0.1;
-			        int newNumVertices = asteroid_it->numVertices;
+			            // Vary the position to within +- 1% of screen dimensions compared with original asteroid
+			            Vector2 newPosition = {asteroid_it->position.x + (GC::SCREEN_WIDTH/100) * uniformDis(gen) , asteroid_it->position.y + (GC::SCREEN_HEIGHT/100) * uniformDis(gen)};
+			            // Choose new x and y components of velocity within +-10% of the original asteroid's values
+			            float newVelocX = asteroid_it->velocX + asteroid_it->velocX * uniformDis(gen) * 0.1;
+			            float newVelocY = asteroid_it->velocY + asteroid_it->velocY * uniformDis(gen) * 0.1;
+			            int newNumVertices = asteroid_it->numVertices;
 			      
-                                Asteroid newAsteroid = Asteroid(newPosition, newVelocX, newVelocY, newSize, newNumVertices, WHITE, GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
-			        newAsteroids.push_back(newAsteroid);
-			    }
-		        } 
-		        asteroid_it = asteroids.erase(asteroid_it);
-		    } else {
-	                ++asteroid_it;
-		    }
+                                    Asteroid newAsteroid = Asteroid(newPosition, newVelocX, newVelocY, newSize, newNumVertices, WHITE, GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
+			            newAsteroids.push_back(newAsteroid);
+			        }
+		            } 
+		            asteroid_it = asteroids.erase(asteroid_it);
+		        } else {
+	                    ++asteroid_it;
+		        }
+	            }
 	        }
-	    }
 
-	    // Add new asteroids to the full list
-	    asteroids.insert(asteroids.end(), newAsteroids.begin(), newAsteroids.end());
+	        // Add new asteroids to the full list
+	        asteroids.insert(asteroids.end(), newAsteroids.begin(), newAsteroids.end());
 
-	    // Remove bullets that are off screen
-	    bullets.erase(std::remove_if(bullets.begin(), bullets.end(),
-	        [](Bullet& bullet) {
-	            return bullet.IsOffScreen(GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
-	        }), bullets.end());
+	        // Remove bullets that are off screen
+	        bullets.erase(std::remove_if(bullets.begin(), bullets.end(),
+	            [](Bullet& bullet) {
+	                return bullet.IsOffScreen(GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
+	            }), bullets.end());
 
-            // Check if any asteroids have hit the player
+                // Check if any asteroids have hit the player
 
-	    // Draw all asteroids and check if any are hitting the player
-            for (auto& asteroid : asteroids) {
-	        if (p.CollidedWithAsteroid(asteroid)) {
-		    state.status = GAME_OVER;		
-		}
-	        asteroid.Draw();
-	    }
+	        // Draw all asteroids and check if any are hitting the player
+                for (auto& asteroid : asteroids) {
+	            if (p.CollidedWithAsteroid(asteroid)) {
+		        state.status = GAME_OVER;		
+		    }
+	            asteroid.Draw();
+	        }
 
-	    p.Draw();
+	        p.Draw();
 
-	    textColor.DrawText("Level: " + std::to_string(state.level) + "", 10, 10, 20);	
-	    EndDrawing();
+	        textColor.DrawText("Level: " + std::to_string(state.level) + "", 10, 10, 20);	
+	        EndDrawing();
 
-	    // Check if asteroids vector is empty and move to next level if so
-	    if (asteroids.empty()) {
-	        state.level++;
-                // Load in the next set of asteroids
-                //asteroids = {roid1, roid2, roid3};
-                asteroids = create_asteroids(state, 1);
-		state.status = NEXT_LEVEL;
-	    }
+	        // Check if asteroids vector is empty and move to next level if so
+	        if (asteroids.empty()) {
+	            state.level++;
+                    // Load in the next set of asteroids
+                    asteroids = create_asteroids(state, 3);
+		    state.status = NEXT_LEVEL;
+	        }
+		break;
         }
     }
 
