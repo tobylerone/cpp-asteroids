@@ -17,6 +17,9 @@ namespace GameConstants {
     const int FPS = 60;
     const double pi = 3.141592653589793238;
     const double BULLET_SPEED = 20.0;
+    const int BULLET_FRAMES_PER_SPAWN = 6;
+    // The number of smaller asteroids created by destroying a larger one
+    int ASTEROID_SPAWN_FACTOR = 2;
 }
 
 // Create an alias
@@ -25,6 +28,8 @@ namespace GC = GameConstants;
 struct GameState {
     
     int level = 1;
+    int bulletFramesUntilNextSpawn = 0;
+
     GameStatus status;
 
     // Create random number generators for uniform real distribution and gaussian distribution
@@ -33,8 +38,7 @@ struct GameState {
     std::mt19937 gen;
     std::uniform_real_distribution<> uniformDis;
 
-    GameState(): rd(), gen(rd()), uniformDis(0.0, 1.0) {}
-
+    GameState(): status(MENU), rd(), gen(rd()), uniformDis(0.0, 1.0) {}
 };
 
 class Bullet {
@@ -116,7 +120,7 @@ class Asteroid {
 
 	    for (int i = 0; i < numVertices; i++) {
 	        polarVertices[i].magnitude = radius + gaussDis(gen);
-	        //polarVertices[i].theta = 2*GC::pi * uniformDis(gen);	
+	        //polarVertices[i].theta = 2*GC::pi * state.uniformDis(state.gen);	
 	    	// Theta has to be ordered to avoid lines overlapping
 		// TODO: Don't evenly distribute theta in a circle. Add some randomness
 		polarVertices[i].theta = i*(2*GC::pi/numVertices);
@@ -443,30 +447,15 @@ std::vector<Asteroid> create_asteroids(GameState& state, int numAsteroids) {
 
 int main() {
 
-    // Define random uniform process
-    std::random_device rd; // Create seed
-    std::mt19937 gen(rd());
-    
-    std::uniform_real_distribution<> uniformDis(-1.0, 1.0);
-
     GameState state;
-    state.status = MENU;
-
-    std::vector<Bullet> bullets;
-    // Wait a period between successive bullet object creations
-    const int bFramesBetweenSpawn = 6;
-    int bFramesUntilNextSpawn = 0;
 
     raylib::Color textColor(GREEN);
     raylib::Window w(GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT, "Asteroids");
     
     SetTargetFPS(GC::FPS);
 
+    std::vector<Bullet> bullets;
     Player p = Player(GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
-
-    // The number of smaller asteroids created by destroying a larger one
-    int asteroidSpawnFactor = 2;
-
     std::vector<Asteroid> asteroids = create_asteroids(state, 3);
    
     // Main game loop
@@ -486,19 +475,19 @@ int main() {
 	    case PLAYING:
 	        if (IsKeyDown(KEY_SPACE)) {
 	            //Create a new bullet if enough frames have passed since the last spawn
-                    if (bFramesUntilNextSpawn <= 0) {
+                    if (state.bulletFramesUntilNextSpawn <= 0) {
 	    
                         // Quick way to get the bullet x & y deltas
 	                float bVelocX = p.deltaXShip * (GC::BULLET_SPEED/p.length);
 	                float bVelocY = p.deltaYShip * (GC::BULLET_SPEED/p.length);
 	    
 	                bullets.push_back(Bullet({p.points[0].x, p.points[0].y}, bVelocX, bVelocY));
-	                bFramesUntilNextSpawn = bFramesBetweenSpawn;
+	                state.bulletFramesUntilNextSpawn = GC::BULLET_FRAMES_PER_SPAWN;
 	             }
 	        }
 
 	        // Decrement the frame count between bullet spawning
-	        if (bFramesUntilNextSpawn > 0) bFramesUntilNextSpawn--;
+	        if (state.bulletFramesUntilNextSpawn > 0) state.bulletFramesUntilNextSpawn--;
 
                 // DRAW------------------------------------------------------------------------------
                 BeginDrawing();
@@ -522,13 +511,13 @@ int main() {
 		         
 			        int newSize = asteroid_it->size - 1;
 			
-			        for (int i=0; i<asteroidSpawnFactor; i++){
+			        for (int i=0; i<GC::ASTEROID_SPAWN_FACTOR; i++){
 			     
 			            // Vary the position to within +- 1% of screen dimensions compared with original asteroid
-			            Vector2 newPosition = {asteroid_it->position.x + (GC::SCREEN_WIDTH/100) * uniformDis(gen) , asteroid_it->position.y + (GC::SCREEN_HEIGHT/100) * uniformDis(gen)};
+			            Vector2 newPosition = {asteroid_it->position.x + (GC::SCREEN_WIDTH/100) * state.uniformDis(state.gen) , asteroid_it->position.y + (GC::SCREEN_HEIGHT/100) * state.uniformDis(state.gen)};
 			            // Choose new x and y components of velocity within +-10% of the original asteroid's values
-			            float newVelocX = asteroid_it->velocX + asteroid_it->velocX * uniformDis(gen) * 0.1;
-			            float newVelocY = asteroid_it->velocY + asteroid_it->velocY * uniformDis(gen) * 0.1;
+			            float newVelocX = asteroid_it->velocX + asteroid_it->velocX * state.uniformDis(state.gen) * 0.1;
+			            float newVelocY = asteroid_it->velocY + asteroid_it->velocY * state.uniformDis(state.gen) * 0.1;
 			            int newNumVertices = asteroid_it->numVertices;
 			      
                                     Asteroid newAsteroid = Asteroid(newPosition, newVelocX, newVelocY, newSize, newNumVertices, WHITE, GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
