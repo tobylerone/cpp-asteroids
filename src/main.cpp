@@ -38,6 +38,10 @@ struct GameState {
     std::mt19937 gen;
     std::uniform_real_distribution<> uniformDis;
 
+    //std::vector<Bullet> bullets = {};
+    //Player player;
+    //std::vector<Asteroid> asteroids = {}; // TODO: Length is already known so no need to declare with dynamic length
+    
     GameState(): status(MENU), rd(), gen(rd()), uniformDis(0.0, 1.0) {}
 };
 
@@ -347,6 +351,30 @@ class Player {
         }
 };
 
+std::vector<Asteroid> create_asteroids(GameState& state, int numAsteroids) {
+    
+    std::vector<Asteroid> asteroids {};
+
+    Vector2 position;
+    float xSpeed;
+    float ySpeed;
+    // TODO: This should not be hardcoded here
+    int size = 3;
+    int numVertices;
+    
+    for (int i = 0; i < numAsteroids; i++) {
+	position = {state.uniformDis(state.gen) * GC::SCREEN_WIDTH, state.uniformDis(state.gen) * GC::SCREEN_HEIGHT};
+	// Select speed from uniform random distribution between -3 and 3
+	xSpeed = (state.uniformDis(state.gen) * 6 - 3);
+        ySpeed = (state.uniformDis(state.gen) * 6 - 3);
+	Asteroid ast = Asteroid(position, xSpeed, ySpeed, 3, 12, WHITE, GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
+        asteroids.push_back(ast);
+    }
+
+    return asteroids;    
+
+}
+
 void menu_screen(GameState& state) {
 
     if(IsKeyDown(KEY_S)) {
@@ -421,59 +449,9 @@ void game_over_screen(GameState& state) {
     EndDrawing();
 }
 
-std::vector<Asteroid> create_asteroids(GameState& state, int numAsteroids) {
-    
-    std::vector<Asteroid> asteroids {};
+void playing_screen(GameState& state, Player& p, std::vector<Bullet>& bullets, std::vector<Asteroid>& asteroids, raylib::Color& textColor) {
 
-    Vector2 position;
-    float xSpeed;
-    float ySpeed;
-    // TODO: This should not be hardcoded here
-    int size = 3;
-    int numVertices;
-    
-    for (int i = 0; i < numAsteroids; i++) {
-	position = {state.uniformDis(state.gen) * GC::SCREEN_WIDTH, state.uniformDis(state.gen) * GC::SCREEN_HEIGHT};
-	// Select speed from uniform random distribution between -3 and 3
-	xSpeed = (state.uniformDis(state.gen) * 6 - 3);
-        ySpeed = (state.uniformDis(state.gen) * 6 - 3);
-	Asteroid ast = Asteroid(position, xSpeed, ySpeed, 3, 12, WHITE, GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
-        asteroids.push_back(ast);
-    }
-
-    return asteroids;    
-
-}
-
-int main() {
-
-    GameState state;
-
-    raylib::Color textColor(GREEN);
-    raylib::Window w(GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT, "Asteroids");
-    
-    SetTargetFPS(GC::FPS);
-
-    std::vector<Bullet> bullets;
-    Player p = Player(GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
-    std::vector<Asteroid> asteroids = create_asteroids(state, 3);
-   
-    // Main game loop
-    while (!w.ShouldClose()) // Detect window close button or ESC key
-    {
-	switch (state.status)
-	{
-	    case MENU:
-	        menu_screen(state);
-		break;
-	    case NEXT_LEVEL:
-	        next_level_screen(state);
-                break;
-	    case GAME_OVER:
-	        game_over_screen(state);
-	        break;
-	    case PLAYING:
-	        if (IsKeyDown(KEY_SPACE)) {
+	if (IsKeyDown(KEY_SPACE)) {
 	            //Create a new bullet if enough frames have passed since the last spawn
                     if (state.bulletFramesUntilNextSpawn <= 0) {
 	    
@@ -562,6 +540,42 @@ int main() {
                     asteroids = create_asteroids(state, 3);
 		    state.status = NEXT_LEVEL;
 	        }
+}
+
+int main() {
+
+    GameState state;
+
+    raylib::Color textColor(GREEN);
+    raylib::Window w(GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT, "Asteroids");
+    
+    SetTargetFPS(GC::FPS);
+   
+    Player p = Player(GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
+    std::vector<Bullet> bullets = {};
+
+    Asteroid roid1 = Asteroid({100, 100}, 1, 3.5, 3, 10, WHITE, GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
+    Asteroid roid2 = Asteroid({600, 200}, 2.5, -3, 3, 7, WHITE, GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
+    Asteroid roid3 = Asteroid({200, 500}, -2, -3, 3, 12, WHITE, GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
+    
+    std::vector<Asteroid> asteroids = {roid1, roid2, roid3};
+    
+    // Main game loop
+    while (!w.ShouldClose()) // Detect window close button or ESC key
+    {
+	switch (state.status)
+	{
+	    case MENU:
+	        menu_screen(state);
+		break;
+	    case NEXT_LEVEL:
+	        next_level_screen(state);
+                break;
+	    case GAME_OVER:
+	        game_over_screen(state);
+	        break;
+	    case PLAYING:
+		playing_screen(state, p, bullets, asteroids, textColor);
 		break;
         }
     }
