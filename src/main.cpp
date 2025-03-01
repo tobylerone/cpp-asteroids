@@ -3,6 +3,7 @@
 #include <cmath>
 #include <algorithm>
 #include <random>
+#include "bullet.h"
 
 enum GameStatus {
     MENU,
@@ -44,29 +45,6 @@ struct GameState {
     
     GameState(): status(MENU), rd(), gen(rd()), uniformDis(0.0, 1.0) {}
 };
-
-class Bullet {
-    public:
-        Vector2 position;
-	float velocX;
-	float velocY;
-	float radius = 2;
-	Color color = WHITE;
-
-	Bullet(Vector2 pos, float dx, float dy): position(pos), velocX(dx), velocY(dy) {}
-	
-	void Draw() {
-	    // Update the positions
-            position.x += velocX;
-	    position.y += velocY;
-	    DrawCircleV(position, radius, color);
-	}
-
-        bool IsOffScreen(int SCREEN_WIDTH, int SCREEN_HEIGHT) {
-	    return (position.x < 0 || position.x > SCREEN_WIDTH || position.y < 0 || position.y > SCREEN_HEIGHT);
-	}
-};
-
 
 class PolarCoordinate {
     public:
@@ -424,10 +402,12 @@ void next_level_screen(GameState& state) {
     EndDrawing();
 }
 
-void game_over_screen(GameState& state) {
+bool game_over_screen(GameState& state) {
     
     if(IsKeyDown(KEY_R)) {
         state.status = PLAYING;
+    	// New game started. Indicates that game variables must be reset at next game loop iteration
+	return true;
     }
 
     BeginDrawing();
@@ -447,6 +427,9 @@ void game_over_screen(GameState& state) {
     DrawText(subText, (GC::SCREEN_WIDTH/2) - (subTextWidth/2), GC::SCREEN_HEIGHT/2, subTextFontSize, WHITE);
 
     EndDrawing();
+
+    // New game not started
+    return false;
 }
 
 void playing_screen(GameState& state, Player& p, std::vector<Bullet>& bullets, std::vector<Asteroid>& asteroids, raylib::Color& textColor) {
@@ -482,7 +465,7 @@ void playing_screen(GameState& state, Player& p, std::vector<Bullet>& bullets, s
 	        for (auto it = bullets.begin(); it != bullets.end(); ++it) {
 	            // Check if bullet is inside any asteroid
 	            for (auto asteroid_it = asteroids.begin(); asteroid_it != asteroids.end();) {
-	                if (asteroid_it->ContainsBullet(it->position)) {
+	                if (asteroid_it->ContainsBullet(it->getPosition())) {
 		            // Remove the asteroid, spawn new smaller asteroids to resemble the
 		            // breaking up of the old, larger one
 		            if (asteroid_it->size > 1) {
@@ -551,18 +534,26 @@ int main() {
     
     SetTargetFPS(GC::FPS);
    
+    // TODO: Can't find how to make Player p; work. Think something to do with how class is defined
     Player p = Player(GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
-    std::vector<Bullet> bullets = {};
+    std::vector<Bullet> bullets;// = {};
+    
+    std::vector<Asteroid> asteroids;// = create_asteroids(state, 3);
+   
+    bool isNewGame = true;
 
-    Asteroid roid1 = Asteroid({100, 100}, 1, 3.5, 3, 10, WHITE, GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
-    Asteroid roid2 = Asteroid({600, 200}, 2.5, -3, 3, 7, WHITE, GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
-    Asteroid roid3 = Asteroid({200, 500}, -2, -3, 3, 12, WHITE, GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
-    
-    std::vector<Asteroid> asteroids = {roid1, roid2, roid3};
-    
     // Main game loop
     while (!w.ShouldClose()) // Detect window close button or ESC key
     {
+	if (isNewGame == true) {
+	    p = Player(GC::SCREEN_WIDTH, GC::SCREEN_HEIGHT);
+    	    bullets = {};
+	    asteroids = create_asteroids(state, 3);
+	    state.level = 1;
+
+	    isNewGame = false;	    
+	}
+
 	switch (state.status)
 	{
 	    case MENU:
@@ -572,7 +563,7 @@ int main() {
 	        next_level_screen(state);
                 break;
 	    case GAME_OVER:
-	        game_over_screen(state);
+	        isNewGame = game_over_screen(state);
 	        break;
 	    case PLAYING:
 		playing_screen(state, p, bullets, asteroids, textColor);
